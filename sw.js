@@ -1,5 +1,5 @@
 // Fôlego Financeiro — service worker: guarda o app para abrir sem internet.
-const CACHE = "folego-v2";
+const CACHE = "folego-v3";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"];
 
 self.addEventListener("install", e => {

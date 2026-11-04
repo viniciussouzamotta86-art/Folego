@@ -1,0 +1,21 @@
+{
+  "name": "Fôlego Financeiro",
+  "short_name": "Fôlego",
+  "description": "Custos pessoais, plano do mês e previsão de gasto nos cartões de crédito.",
+  "lang": "pt-BR",
+  "start_url": "./index.html#visao",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F3F6F5",
+  "theme_color": "#1D5A78",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "shortcuts": [
+    {"name": "Novo lançamento", "url": "./index.html#lancamentos"},
+    {"name": "Importar extrato", "url": "./index.html#importar"}
+  ]
+}

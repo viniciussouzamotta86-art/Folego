@@ -1,5 +1,5 @@
 // Fôlego Financeiro — service worker: guarda o app para abrir sem internet.
-const CACHE = "folego-v5";
+const CACHE = "folego-v6";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./firebase-config.js", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"];
 const CACHEABLE = [self.location.origin, "https://www.gstatic.com", "https://fonts.googleapis.com", "https://fonts.gstatic.com"];
 

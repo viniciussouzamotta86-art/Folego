@@ -18,6 +18,7 @@
 <meta name="apple-mobile-web-app-title" content="Fôlego">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script>window.FOLEGO_STANDALONE=true</script>
+<script src="firebase-config.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -366,6 +367,12 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
   <section id="v-plano" class="view" hidden>
     <div class="summary" id="planSummary"></div>
 
+    <div class="panel" id="syncPanel" hidden>
+      <h2>Sincronizar com a família</h2>
+      <p class="sub">Cada pessoa entra com o próprio e-mail e senha, e os celulares da casa se ligam por um código. O que um lançar aparece para os outros, mesmo que tenha lançado sem internet.</p>
+      <div id="syncBody"></div>
+    </div>
+
     <div class="panel">
       <div class="edithead"><h2>Pessoas da casa</h2><button class="small" data-add="pessoas">Adicionar pessoa</button></div>
       <p class="sub">Quem divide as finanças. Cada receita, despesa fixa, cartão e lançamento pode ser de uma pessoa ou do conjunto.</p>
@@ -521,7 +528,14 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
               <li><b>Importação</b>: ao importar um extrato, escolha também de quem é o arquivo.</li>
               <li><b>Por pessoa</b>: na Visão geral, o quadro mostra a renda prevista, a parte de cada um na renda, o que já entrou e o que cada um gastou no mês. Em Lançamentos, filtre por pessoa.</li>
             </ul>
-            <p class="tip" id="syncTip">Para os dois verem os mesmos números, os lançamentos precisam estar no mesmo lugar. No app instalado, um exporta o backup e o outro usa <span class="ui">Colar backup</span> ou <span class="ui">Restaurar de arquivo</span>; os lançamentos se somam, sem duplicar.</p>
+            <h3>Sincronizar os celulares</h3>
+            <ol>
+              <li>No primeiro celular, abra <span class="ui">Plano do mês › Sincronizar com a família</span>, digite e-mail e senha e toque em <span class="ui">Criar conta</span>.</li>
+              <li>Toque em <span class="ui">Criar casa</span>. O plano e os lançamentos desse celular vão para a casa e aparece um <b>código</b> de 8 letras e números.</li>
+              <li>Envie o código para a outra pessoa. No celular dela: instalar o app, <span class="ui">Criar conta</span> com o e-mail dela, digitar o código e tocar em <span class="ui">Entrar na casa</span>.</li>
+              <li>Pronto: tudo o que um lançar, importar ou mudar no plano aparece no outro em segundos. Sem internet, o app guarda e envia quando a conexão voltar.</li>
+            </ol>
+            <p class="tip">O código é a chave da casa: só compartilhe com quem divide as finanças com você. Se esquecer a senha, use <span class="ui">Esqueci a senha</span> para receber um link por e-mail. Sem a sincronização ligada, ainda dá para juntar os dados pelo backup: um exporta e o outro usa <span class="ui">Colar backup</span>.</p>
           </section>
           <section id="m-rotina">
             <h3>Rotina diária sugerida</h3>
@@ -779,15 +793,16 @@ async function initStore(){
   state.settings=migrate(saved&&saved.settings||{});
   setSave(store.mode==="local"?"ok":"",store.mode==="local"?"Salvo neste navegador":"Sem salvamento");
 }
-let pending=new Set(), saveSettingsPending=false, saving=false, setTimer=null;
+let pending=new Set(), saveSettingsPending=false, saving=false, setTimer=null, settingsDirty=false;
 function persist(months,settings){
   (months||[]).forEach(m=>pending.add(m)); if(settings)saveSettingsPending=true;
-  if(store.mode==="local"){lsSet({tx:state.example?[]:state.tx,settings:state.settings});pending.clear();saveSettingsPending=false;return}
+  if(store.mode==="cloud"){lsSet({tx:state.example?[]:state.tx,settings:state.settings});cloudFlush();return}
+  if(store.mode==="local"){lsSet({tx:state.example?[]:state.tx,settings:state.settings});pending.clear();saveSettingsPending=false;setSave("ok",window.FOLEGO_STANDALONE?"Salvo no aparelho":"Salvo neste navegador");return}
   if(store.mode!=="db"){setSave("","Sem salvamento");return}
   if(saving)return;
   flush();
 }
-function persistSettingsSoon(){clearTimeout(setTimer);setSave("busy","Salvando…");setTimer=setTimeout(()=>persist([],true),700)}
+function persistSettingsSoon(){clearTimeout(setTimer);settingsDirty=true;setSave("busy","Salvando…");setTimer=setTimeout(()=>{settingsDirty=false;persist([],true)},700)}
 async function flush(){
   saving=true; setSave("busy","Salvando…");
   try{
@@ -953,6 +968,7 @@ function renderSetup(){
     [S.fixas.some(f=>f.valor>0),"Liste as despesas fixas","Aluguel, contas, escola, assinaturas","#plano","Abrir"],
     [Object.values(S.metas||{}).some(v=>v>0)||S.poupanca>0,"Defina metas e poupança","Limite por categoria e quanto guardar","#plano","Abrir"],
     [!state.example&&state.tx.length>0,"Registre seus gastos","Importe extratos ou lance à mão","#importar","Importar"]];
+  if(window.FOLEGO_STANDALONE&&window.FOLEGO_FIREBASE)steps.push([store.mode==="cloud","Conecte os celulares da casa","Entre com sua conta e use o mesmo código","#plano","Conectar"]);
   const done=steps.filter(s=>s[0]).length;
   $("#setupPanel").hidden=done===steps.length;
   $("#setupSub").textContent=`${done} de ${steps.length} etapas concluídas. Com tudo preenchido, a previsão de cada cartão fica precisa.`;
@@ -1132,7 +1148,7 @@ function renderPlan(){
   $("#planSummary").innerHTML=[["Receitas",rec,""],["Despesas fixas",fix,""],["Metas variáveis",met,""],["Poupança",po,""],["Sobra do plano",sob,sob<0?"neg":"pos"]].map(([n,v,cl])=>`<div><span>${n}</span><b class="${cl}">${money0(v)}</b></div>`).join("");
   const rules=S.rules||[];
   $("#rulesList").innerHTML=rules.length?rules.map((r,i)=>`<div class="row"><span class="l">${esc(r.k)} → <b>${esc(r.cat)}</b></span><button class="x" data-rule="${i}" aria-label="Remover regra">×</button></div>`).join(""):`<div class="empty">Nenhuma regra ainda.</div>`;
-  $("#storeNote").textContent=STANDALONE&&store.mode==="local"?"Seus dados ficam salvos neste aparelho, dentro do app.":store.mode==="db"?"Seu plano e seus lançamentos ficam salvos na sua conta Claude, visíveis só para você, em qualquer aparelho em que abrir esta página."
+  $("#storeNote").textContent=store.mode==="cloud"?"Seus dados estão sincronizados com a casa e também ficam guardados neste aparelho para uso sem internet.":STANDALONE&&store.mode==="local"?"Seus dados ficam salvos neste aparelho, dentro do app.":store.mode==="db"?"Seu plano e seus lançamentos ficam salvos na sua conta Claude, visíveis só para você, em qualquer aparelho em que abrir esta página."
     :store.mode==="local"?"Seus dados ficam salvos só neste navegador. Limpar os dados do navegador apaga o histórico.":"Este navegador não permite salvar. Os dados somem ao fechar a página.";
   fillOrigins();
 }
@@ -1238,7 +1254,7 @@ function openSheet(t){
   $("#aQuem").innerHTML=personOptions(); $("#quemWrap").hidden=!multi();
   $("#aQuem").value=t?whoOf(t):defaultQuem($("#aSrc").value);
   $("#aParc").value="1"; $("#delInSheet").hidden=!t; $("#saveMore").hidden=!!t;
-  updateParc(); $("#sheet").hidden=false; setTimeout(()=>$("#aVal").focus(),30);
+  updateParc(); $("#sheet").hidden=false; $("#aVal").focus();
 }
 function closeSheet(){$("#sheet").hidden=true;editId=null}
 function updateParc(){
@@ -1370,6 +1386,144 @@ if(STANDALONE){
   if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 }
 
+/* ---------- sincronização (Firebase) ---------- */
+const SDK=["https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js","https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js","https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"];
+let FB=null, cloudUser=null, syncState="off", syncBusy=false;
+const cleanObj=o=>JSON.parse(JSON.stringify(o));
+function same(a,b){if(!a||!b)return false;const k=[...new Set([...Object.keys(a),...Object.keys(b)])].sort();return JSON.stringify(a,k)===JSON.stringify(b,k)}
+const fmtCode=c=>c?c.slice(0,4)+"-"+c.slice(4):"";
+function genCode(){const A="ABCDEFGHJKMNPQRSTUVWXYZ23456789",r=new Uint32Array(8);crypto.getRandomValues(r);return [...r].map(x=>A[x%A.length]).join("")}
+const ERR={"auth/invalid-email":"E-mail inválido.","auth/missing-email":"Digite o e-mail.","auth/missing-password":"Digite a senha.","auth/weak-password":"A senha precisa ter pelo menos 6 caracteres.","auth/email-already-in-use":"Já existe uma conta com esse e-mail. Use Entrar.","auth/invalid-credential":"E-mail ou senha incorretos.","auth/invalid-login-credentials":"E-mail ou senha incorretos.","auth/wrong-password":"E-mail ou senha incorretos.","auth/user-not-found":"Não há conta com esse e-mail. Use Criar conta.","auth/too-many-requests":"Muitas tentativas seguidas. Espere alguns minutos e tente de novo.","auth/network-request-failed":"Sem internet. Conecte-se e tente de novo.","auth/operation-not-allowed":"O login por e-mail ainda não foi ativado no Firebase.","permission-denied":"Sem permissão no banco de dados. Confira as regras do Firestore.","unavailable":"Sem internet. Conecte-se e tente de novo."};
+const errMsg=e=>ERR[e&&e.code]||"Não deu certo agora. Tente de novo em instantes.";
+function loadScript(src){return new Promise((ok,bad)=>{const el=document.createElement("script");el.src=src;el.onload=ok;el.onerror=()=>bad(new Error("load"));document.head.append(el)})}
+function syncStatus(){if(store.mode!=="cloud")return;setSave(navigator.onLine?"ok":"busy",navigator.onLine?"Sincronizado":"Sem internet · envia ao voltar");renderSync()}
+window.addEventListener("online",syncStatus);window.addEventListener("offline",syncStatus);
+function cloudErr(e){console.error(e);setSave("","Erro ao sincronizar");toast(e&&e.code==="permission-denied"?"Sem permissão para salvar nesta casa. Saia da conta e entre de novo.":"Não foi possível sincronizar agora. Suas alterações continuam no aparelho.")}
+function cloudFlush(){
+  if(store.mode!=="cloud")return;
+  try{
+    const del=firebase.firestore.FieldValue.delete();
+    if(saveSettingsPending){saveSettingsPending=false;store.ref.doc("settings").set(cleanObj(state.settings)).catch(cloudErr)}
+    for(const m of [...pending]){pending.delete(m);
+      const local={}; if(!state.example)for(const t of state.tx)if(monthKey(t.date)===m)local[t.id]=cleanObj(t);
+      const remote=store.months[m]||{}, patch={}; let n=0;
+      for(const id in local)if(!same(local[id],remote[id])){patch[id]=local[id];n++}
+      for(const id in remote)if(!(id in local)){patch[id]=del;n++}
+      if(n){store.ref.doc("tx-"+m).set({items:patch},{merge:true}).catch(cloudErr);
+        const nm={...remote};for(const id in local)nm[id]=local[id];for(const id in remote)if(!(id in local))delete nm[id];store.months[m]=nm}
+    }
+    syncStatus();
+  }catch(e){cloudErr(e)}
+}
+function stopCloud(){if(store.unsub){try{store.unsub()}catch(e){}store.unsub=null}}
+function startCloud(casa){
+  stopCloud();
+  try{localStorage.setItem("folego.casa",casa)}catch(e){}
+  store={mode:"cloud",casa,ref:FB.db.collection("casas").doc(casa).collection("dados"),months:{}};
+  pending.clear();saveSettingsPending=false;syncState="casa";
+  setSave("busy","Sincronizando…");
+  store.unsub=store.ref.onSnapshot(snap=>{
+    let settings=null;const months={};
+    snap.forEach(d=>{const b=d.data()||{};if(d.id==="settings")settings=b;else if(d.id.startsWith("tx-"))months[d.id.slice(3)]=b.items||{}});
+    store.months=months;
+    const tx=[];for(const m in months)for(const id in months[m])tx.push(cleanObj(months[m][id]));
+    if(settings&&!settingsDirty)state.settings=migrate(settings);
+    state.tx=tx;state.example=!tx.length;if(state.example)state.tx=exampleData();
+    lsSet({tx:state.example?[]:state.tx,settings:state.settings});
+    renderAll();syncStatus();
+  },e=>{cloudErr(e);renderSync()});
+  renderSync();
+}
+async function uploadAll(ref,withSettings){
+  const b=FB.db.batch();let n=0;
+  if(withSettings){b.set(ref.doc("settings"),cleanObj(state.settings));n++}
+  if(!state.example){const by={};for(const t of state.tx)(by[monthKey(t.date)]=by[monthKey(t.date)]||{})[t.id]=cleanObj(t);
+    for(const m in by){b.set(ref.doc("tx-"+m),{items:by[m]},{merge:true});n++}}
+  if(n)await b.commit();
+}
+function backToLocal(){stopCloud();store={mode:lsSet({tx:state.example?[]:state.tx,settings:state.settings})?"local":"memory"};setSave("ok","Salvo no aparelho");renderAll()}
+async function cloudInit(){
+  const cfg=window.FOLEGO_FIREBASE;
+  if(!STANDALONE||!cfg){$("#syncPanel").hidden=true;return}
+  $("#syncPanel").hidden=false;syncState="loading";renderSync();
+  try{if(!window.firebase||!firebase.firestore){for(const u of SDK)await loadScript(u)}}catch(e){syncState="noload";renderSync();return}
+  try{
+    firebase.apps&&firebase.apps.length?firebase.app():firebase.initializeApp(cfg);
+    FB={auth:firebase.auth(),db:firebase.firestore()};
+    try{await FB.db.enablePersistence({synchronizeTabs:true})}catch(e){}
+  }catch(e){console.error(e);syncState="noload";renderSync();return}
+  FB.auth.onAuthStateChanged(async u=>{
+    cloudUser=u;
+    if(!u){if(store.mode==="cloud")backToLocal();syncState="out";renderSync();renderSetup();return}
+    let casa=null;try{casa=localStorage.getItem("folego.casa")}catch(e){}
+    try{const d=await FB.db.collection("usuarios").doc(u.uid).get();if(d.exists&&d.data().casa)casa=d.data().casa;else if(navigator.onLine)casa=null}catch(e){}
+    if(casa)startCloud(casa);else{syncState="nocasa";renderSync()}
+    renderSetup();
+  });
+}
+function renderSync(){
+  const el=$("#syncBody");if(!el||$("#syncPanel").hidden)return;
+  if(el.contains(document.activeElement)&&document.activeElement.tagName==="INPUT")return;
+  const email=cloudUser?esc(cloudUser.email||""):"";
+  let h="";
+  if(syncState==="loading")h=`<p class="note">Carregando a sincronização…</p>`;
+  else if(syncState==="noload")h=`<p class="note">Não foi possível carregar a sincronização. Conecte-se à internet e abra o app de novo. Enquanto isso, tudo continua salvo neste aparelho.</p>`;
+  else if(syncState==="out")h=`<form id="syncForm" class="fgrid" style="max-width:560px" novalidate>
+      <label class="fld">E-mail<input id="sEmail" type="email" autocomplete="username" inputmode="email" placeholder="voce@exemplo.com"></label>
+      <label class="fld">Senha<input id="sPass" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres"></label>
+      <button type="submit" hidden></button></form>
+    <div class="actions"><button class="primary" type="button" data-sync="login">Entrar</button><button type="button" data-sync="signup">Criar conta</button><button type="button" class="small" data-sync="reset">Esqueci a senha</button></div>
+    <p class="note" style="margin-top:10px">Primeira vez? Digite seu e-mail, escolha uma senha e toque em Criar conta. Cada pessoa da casa cria a própria conta.</p>`;
+  else if(syncState==="nocasa")h=`<p style="margin:0 0 14px">Conectado como <b>${email}</b>. Agora ligue este aparelho a uma casa.</p>
+    <div class="grid2">
+      <div class="ccard" style="border:1px solid var(--line);border-radius:var(--r);padding:14px"><span class="nm">Sou o primeiro da casa</span><span class="dt" style="font-size:13px">Cria a casa com o plano e os lançamentos deste aparelho e gera um código para os outros entrarem.</span><div><button class="primary" type="button" data-sync="create">Criar casa</button></div></div>
+      <div class="ccard" style="border:1px solid var(--line);border-radius:var(--r);padding:14px"><span class="nm">Já tenho um código</span><span class="dt" style="font-size:13px">Os lançamentos deste aparelho são somados aos da casa, e o plano passa a ser o da casa.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="sCode" placeholder="ABCD-2345" autocapitalize="characters" autocomplete="off" style="text-transform:uppercase;flex:1;min-width:120px;font-family:var(--f-mono)"><button type="button" data-sync="join">Entrar na casa</button></div></div>
+    </div>
+    <div class="actions"><button type="button" class="small" data-sync="logout">Sair da conta</button></div>`;
+  else if(syncState==="casa"&&store.mode==="cloud"){const on=navigator.onLine;
+    h=`<div class="ccard"><div class="hd"><span class="nm">Sincronização ligada</span><span class="pill ${on?"ok":"warn"}">${on?"Sincronizado":"Sem internet"}</span></div>
+      <span class="dt" style="font-size:13px">Conta: ${email}</span></div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px"><span class="eyebrow">Código da casa</span><b class="num" style="font-size:22px;letter-spacing:.06em">${fmtCode(store.casa)}</b><button type="button" class="small" data-sync="copy">Copiar código</button></div>
+    <p class="note" style="margin-top:8px">Para ligar outro celular: instale o app nele, crie uma conta e use <b>Entrar na casa</b> com este código. Só quem tem o código consegue entrar.</p>
+    <div class="actions"><button type="button" class="small" data-sync="logout">Sair da conta</button></div>`}
+  el.innerHTML=h;
+  el.querySelectorAll("button").forEach(b=>b.disabled=syncBusy);
+}
+async function syncAction(a){
+  if(syncBusy||!FB)return;
+  const email=($("#sEmail")?.value||"").trim(),pass=$("#sPass")?.value||"";
+  const run=async(fn,ok)=>{syncBusy=true;renderSync();try{await fn();if(ok)toast(ok)}catch(e){console.error(e);toast(errMsg(e))}syncBusy=false;if(document.activeElement)document.activeElement.blur();renderSync()};
+  if(a==="login")return run(()=>FB.auth.signInWithEmailAndPassword(email,pass));
+  if(a==="signup")return run(()=>FB.auth.createUserWithEmailAndPassword(email,pass),"Conta criada.");
+  if(a==="reset"){if(!email){toast("Digite seu e-mail e toque de novo em Esqueci a senha.");return}return run(()=>FB.auth.sendPasswordResetEmail(email),"Enviamos um link para redefinir a senha para "+email+".")}
+  if(a==="logout")return run(async()=>{try{localStorage.removeItem("folego.casa")}catch(e){}await FB.auth.signOut()});
+  if(a==="copy"){const c=fmtCode(store.casa);try{await navigator.clipboard.writeText(c);toast("Código copiado: "+c)}catch(e){toast("Código da casa: "+c)}return}
+  if(a==="create")return run(async()=>{
+    const code=genCode(),ref=FB.db.collection("casas").doc(code);
+    await ref.set({membros:[cloudUser.uid],criadaEm:firebase.firestore.FieldValue.serverTimestamp()});
+    await FB.db.collection("usuarios").doc(cloudUser.uid).set({casa:code});
+    await uploadAll(ref.collection("dados"),true);
+    startCloud(code);
+  },"Casa criada. Envie o código para quem vai usar junto.");
+  if(a==="join"){
+    const code=($("#sCode")?.value||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+    if(code.length!==8){toast("O código tem 8 letras e números, como ABCD-2345.");return}
+    return run(async()=>{
+      const ref=FB.db.collection("casas").doc(code),d=await ref.get();
+      if(!d.exists){const e=new Error("nf");e.code="notfound";throw e}
+      if(!(d.data().membros||[]).includes(cloudUser.uid))await ref.update({membros:firebase.firestore.FieldValue.arrayUnion(cloudUser.uid)});
+      await FB.db.collection("usuarios").doc(cloudUser.uid).set({casa:code});
+      await uploadAll(ref.collection("dados"),false);
+      startCloud(code);
+    },"Pronto! Este aparelho agora usa os dados da casa.");
+  }
+}
+ERR.notfound="Código não encontrado. Confira com quem criou a casa.";
+$("#syncBody").addEventListener("click",e=>{const b=e.target.closest("[data-sync]");if(b)syncAction(b.dataset.sync)});
+$("#syncBody").addEventListener("submit",e=>{e.preventDefault();syncAction("login")});
+$("#syncBody").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="sCode"){e.preventDefault();syncAction("join")}});
+
 /* ---------- rotas e início ---------- */
 const VIEWS=["visao","plano","lancamentos","importar","ajuda"];
 function route(){const h=location.hash.slice(1);const v=VIEWS.includes(h)?h:(h==="ajustes"?"plano":"visao");
@@ -1378,7 +1532,7 @@ function route(){const h=location.hash.slice(1);const v=VIEWS.includes(h)?h:(h==
 window.addEventListener("hashchange",route);
 document.querySelector(".toc").addEventListener("click",e=>{const a=e.target.closest("[data-goto]");if(!a)return;e.preventDefault();const el=document.getElementById(a.dataset.goto);if(el)el.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"})});
 state.example=true; state.tx=exampleData(); route(); renderAll();
-initStore().then(()=>{ state.example=!state.tx.length; if(state.example)state.tx=exampleData(); renderAll(); });
+initStore().then(()=>{ state.example=!state.tx.length; if(state.example)state.tx=exampleData(); renderAll(); cloudInit(); });
 })();
 </script>
 

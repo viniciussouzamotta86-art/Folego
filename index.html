@@ -176,6 +176,19 @@ table.edit tfoot td{font-weight:600;font-family:var(--f-mono);font-variant-numer
 .steps div{font-size:14px;color:var(--muted)} .steps b{display:block;color:var(--ink);font-weight:600;margin-bottom:2px}
 .preview{display:grid;gap:10px;margin-top:16px}
 .pv{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r);font-size:14px}
+@media (max-width:640px){
+table.edit{min-width:0!important}
+table.edit thead{display:none}
+table.edit tbody tr[data-i]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;padding:12px;border-top:1px solid var(--line);position:relative}
+table.edit tbody tr[data-i]:first-child{border-top:0}
+table.edit tbody tr[data-i] td{padding:0;border:0;width:auto}
+table.edit tbody tr[data-i] td:first-child{grid-column:1/-1;padding-right:40px}
+table.edit tbody tr[data-i] td:last-child{position:absolute;top:12px;right:6px;width:auto}
+table.edit td[data-l]::before{content:attr(data-l);display:block;font-size:11px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em}
+table.edit tfoot tr{display:flex;justify-content:space-between}
+}
+.pvsel{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:560px){.pv{grid-template-columns:minmax(0,1fr) auto}.pvsel{grid-column:1/-1;grid-row:2;justify-content:flex-start}}
 .pv .meta{color:var(--muted);font-size:13px}
 .pv .err{color:var(--bad);font-size:13px}
 .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}
@@ -301,6 +314,13 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
       <div class="legend"><span><i></i>Gasto acumulado</span><span><i style="background:repeating-linear-gradient(90deg,var(--accent) 0 4px,transparent 4px 7px)"></i>Projeção</span><span><i style="background:var(--bad)"></i>Teto</span></div>
     </div>
 
+    <div class="panel" id="peoplePanel" hidden>
+      <h2 id="peopleTitle">Por pessoa</h2>
+      <p class="sub">Renda prevista no Plano do mês, o que já entrou e o que cada um gastou no mês.</p>
+      <div class="cardlist" id="peopleBody"></div>
+      <p class="note" style="margin:10px 0 0">Gastos sem pessoa definida, ou em cartão sem titular, entram em Conjunto. Para atribuir, toque em ✎ no lançamento.</p>
+    </div>
+
     <div class="grid2">
       <div class="panel">
         <h2 id="pvrTitle">Plano x realizado</h2>
@@ -347,21 +367,27 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
     <div class="summary" id="planSummary"></div>
 
     <div class="panel">
+      <div class="edithead"><h2>Pessoas da casa</h2><button class="small" data-add="pessoas">Adicionar pessoa</button></div>
+      <p class="sub">Quem divide as finanças. Cada receita, despesa fixa, cartão e lançamento pode ser de uma pessoa ou do conjunto.</p>
+      <div class="tablewrap"><table class="edit" style="min-width:0"><thead><tr><th>Nome</th><th></th></tr></thead><tbody data-list="pessoas"></tbody></table></div>
+    </div>
+
+    <div class="panel">
       <div class="edithead"><h2>Cartões de crédito</h2><button class="small" data-add="cards">Adicionar cartão</button></div>
       <p class="sub">Cada cartão tem seu ciclo. O teto fixo é opcional; sem ele, o painel divide o que sobra do orçamento entre os cartões conforme o uso de cada um.</p>
-      <div class="tablewrap"><table class="edit"><thead><tr><th>Nome</th><th>Fecha dia</th><th>Vence dia</th><th>Limite</th><th>Teto fixo</th><th></th></tr></thead><tbody data-list="cards"></tbody></table></div>
+      <div class="tablewrap"><table class="edit"><thead><tr><th>Nome</th><th>Titular</th><th>Fecha dia</th><th>Vence dia</th><th>Limite</th><th>Teto fixo</th><th></th></tr></thead><tbody data-list="cards"></tbody></table></div>
     </div>
 
     <div class="panel">
       <div class="edithead"><h2>Receitas do mês</h2><button class="small" data-add="receitas">Adicionar receita</button></div>
-      <p class="sub">Salário, pró-labore, aluguéis recebidos, renda extra frequente.</p>
-      <div class="tablewrap"><table class="edit"><thead><tr><th>Descrição</th><th>Valor</th><th>Dia</th><th></th></tr></thead><tbody data-list="receitas"></tbody><tfoot><tr><td>Total</td><td colspan="3" id="totRec"></td></tr></tfoot></table></div>
+      <p class="sub">Uma linha para cada salário ou renda, indicando de quem é. Ex.: salário de cada um, pró-labore, aluguel recebido, renda extra frequente.</p>
+      <div class="tablewrap"><table class="edit"><thead><tr><th>Descrição</th><th>De quem</th><th>Valor</th><th>Dia</th><th></th></tr></thead><tbody data-list="receitas"></tbody><tfoot><tr><td>Total</td><td colspan="4" id="totRec"></td></tr></tfoot></table></div>
     </div>
 
     <div class="panel">
       <div class="edithead"><h2>Despesas fixas</h2><button class="small" data-add="fixas">Adicionar despesa fixa</button></div>
       <p class="sub">Valores que se repetem todo mês. Indique se sai da conta ou de qual cartão: as fixas no cartão que ainda vão cair no ciclo já entram na previsão.</p>
-      <div class="tablewrap"><table class="edit"><thead><tr><th>Descrição</th><th>Valor</th><th>Dia</th><th>Pago com</th><th>Categoria</th><th></th></tr></thead><tbody data-list="fixas"></tbody><tfoot><tr><td>Total</td><td colspan="5" id="totFix"></td></tr></tfoot></table></div>
+      <div class="tablewrap"><table class="edit"><thead><tr><th>Descrição</th><th>Valor</th><th>Dia</th><th>Pago com</th><th>Responsável</th><th>Categoria</th><th></th></tr></thead><tbody data-list="fixas"></tbody><tfoot><tr><td>Total</td><td colspan="6" id="totFix"></td></tr></tfoot></table></div>
     </div>
 
     <div class="panel">
@@ -407,6 +433,7 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
           <a href="#ajuda" data-goto="m-lancar">Lançar à mão</a>
           <a href="#ajuda" data-goto="m-importar">Importar extratos</a>
           <a href="#ajuda" data-goto="m-lista">Lançamentos e categorias</a>
+          <a href="#ajuda" data-goto="m-conjunto">Uso em conjunto</a>
           <a href="#ajuda" data-goto="m-rotina">Rotina diária</a>
           <a href="#ajuda" data-goto="m-backup">Backup e celular</a>
           <a href="#ajuda" data-goto="m-faq">Dúvidas frequentes</a>
@@ -416,8 +443,9 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
             <h3>Primeiros passos</h3>
             <p>Faça nesta ordem. O quadro <span class="ui">Comece por aqui</span>, no topo da Visão geral, marca cada etapa concluída.</p>
             <ol>
+              <li><b>Cadastre as pessoas da casa</b> em <span class="ui">Plano do mês › Pessoas da casa</span>. Troque “Pessoa 1” e “Pessoa 2” pelos nomes e adicione mais pessoas se precisar.</li>
               <li><b>Cadastre seus cartões</b> em <span class="ui">Plano do mês › Cartões de crédito</span>: nome, dia de fechamento, dia de vencimento e limite. Use <span class="ui">Adicionar cartão</span> para cada um.</li>
-              <li><b>Informe suas receitas</b>: salário, pró-labore e outras entradas fixas, com o dia em que caem.</li>
+              <li><b>Informe as receitas</b>: uma linha para cada salário ou renda, com o valor, o dia em que cai e de quem é. Use <span class="ui">Adicionar receita</span> quantas vezes precisar.</li>
               <li><b>Liste as despesas fixas</b>: aluguel, condomínio, escola, plano de saúde, assinaturas. Para cada uma, diga se sai da conta ou de qual cartão.</li>
               <li><b>Defina metas</b> para os gastos variáveis (mercado, alimentação fora, transporte…) e a <b>meta de poupança</b>.</li>
               <li><b>Registre os gastos</b>: importe o extrato e as faturas ou lance à mão pelo botão <span class="ui">+ Lançar</span>.</li>
@@ -482,6 +510,19 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
               <li>Use <b>Ignorar</b> para transferências entre suas próprias contas, para não contarem como gasto.</li>
             </ul>
           </section>
+          <section id="m-conjunto">
+            <h3>Uso em conjunto (casal ou família)</h3>
+            <ul>
+              <li><b>Pessoas da casa</b>: cadastre todos que dividem as finanças em <span class="ui">Plano do mês</span>.</li>
+              <li><b>Vários salários</b>: em <span class="ui">Receitas</span>, crie uma linha para cada salário ou renda e escolha <b>De quem</b>. O orçamento da casa soma todas.</li>
+              <li><b>Cartões</b>: escolha o <b>Titular</b> de cada cartão. As compras nele contam para essa pessoa; use <b>Conjunto</b> para cartões da casa.</li>
+              <li><b>Despesas fixas</b>: indique o <b>Responsável</b> (uma pessoa ou Conjunto).</li>
+              <li><b>Lançamentos</b>: a ficha de lançamento tem o campo <b>De quem</b>. Cada celular lembra a última pessoa escolhida, então cada um lança no próprio nome sem precisar trocar.</li>
+              <li><b>Importação</b>: ao importar um extrato, escolha também de quem é o arquivo.</li>
+              <li><b>Por pessoa</b>: na Visão geral, o quadro mostra a renda prevista, a parte de cada um na renda, o que já entrou e o que cada um gastou no mês. Em Lançamentos, filtre por pessoa.</li>
+            </ul>
+            <p class="tip" id="syncTip">Para os dois verem os mesmos números, os lançamentos precisam estar no mesmo lugar. No app instalado, um exporta o backup e o outro usa <span class="ui">Colar backup</span> ou <span class="ui">Restaurar de arquivo</span>; os lançamentos se somam, sem duplicar.</p>
+          </section>
           <section id="m-rotina">
             <h3>Rotina diária sugerida</h3>
             <ol>
@@ -526,6 +567,7 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
         <select id="fMonth" aria-label="Mês"></select>
         <select id="fSrc" aria-label="Origem"></select>
         <select id="fCat" aria-label="Categoria"></select>
+        <select id="fPes" aria-label="Pessoa"></select>
         <input id="fSearch" type="search" placeholder="Buscar descrição" aria-label="Buscar descrição" style="flex:1;min-width:160px">
         <label class="inline"><input type="checkbox" id="fLearn" checked> Aplicar a iguais e lembrar</label>
       </div>
@@ -573,6 +615,7 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
       <label class="fld">Conta ou cartão<select id="aSrc"></select></label>
       <label class="fld">Categoria<select id="aCat"><option value="">Automática</option></select></label>
       <label class="fld" id="parcWrap">Parcelas<select id="aParc"></select></label>
+      <label class="fld" id="quemWrap">De quem<select id="aQuem"></select></label>
     </div>
     <p class="note" id="parcNote" style="margin:0"></p>
     <div class="actions">
@@ -680,7 +723,7 @@ const expense=t=>EXCLUDED.has(t.cat)?0:-t.amount;
 const income=t=>t.cat==="Receita"?t.amount:0;
 
 /* ---------- estado ---------- */
-function defaults(){return{poupanca:0,cards:[{id:"c1",name:"Cartão 1",fechamento:25,vencimento:5,limite:null,teto:null}],receitas:[],fixas:[],metas:{},rules:[],acctMap:{}}}
+function defaults(){return{poupanca:0,cards:[{id:"c1",name:"Cartão 1",fechamento:25,vencimento:5,limite:null,teto:null}],receitas:[],fixas:[],metas:{},rules:[],acctMap:{},pessoas:[{id:"p1",name:"Pessoa 1"},{id:"p2",name:"Pessoa 2"}]}}
 const state={tx:[],settings:defaults(),example:false};
 let store={mode:"memory"};
 function migrate(s){
@@ -688,11 +731,18 @@ function migrate(s){
   if(!Array.isArray(o.cards)||!o.cards.length){o.cards=[{id:"c1",name:"Cartão 1",fechamento:s.fechamento||25,vencimento:s.vencimento||5,limite:s.limite||null,teto:s.teto||null}]}
   if(!o.receitas.length&&s.renda>0)o.receitas=[{id:uid(),nome:"Renda mensal",valor:s.renda,dia:5}];
   delete o.renda;delete o.fechamento;delete o.vencimento;delete o.limite;delete o.teto;
-  o.rules=o.rules||[];o.metas=o.metas||{};o.acctMap=o.acctMap||{};o.fixas=o.fixas||[];o.receitas=o.receitas||[];
+  o.pessoas=Array.isArray(o.pessoas)&&o.pessoas.length?o.pessoas:d.pessoas;o.rules=o.rules||[];o.metas=o.metas||{};o.acctMap=o.acctMap||{};o.fixas=o.fixas||[];o.receitas=o.receitas||[];
   return o;
 }
 const cardById=id=>state.settings.cards.find(c=>c.id===id);
 const txCard=t=>t.source==="cartao"?(cardById(t.card)?t.card:state.settings.cards[0]?.id):null;
+const pessoas=()=>state.settings.pessoas||[];
+const multi=()=>pessoas().length>1;
+const pName=id=>id?(pessoas().find(p=>p.id===id)?.name||"—"):"Conjunto";
+const whoOf=t=>t.quem!=null?t.quem:(t.source==="cartao"?(cardById(txCard(t))?.titular||""):"");
+const personOptions=()=>`<option value="">Conjunto</option>`+pessoas().map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
+function deviceMe(){try{const m=localStorage.getItem("folego.me");if(m&&pessoas().some(p=>p.id===m))return m}catch(e){}return ""}
+function defaultQuem(origin){const c=origin&&origin.startsWith("card:")&&cardById(origin.slice(5));if(c&&c.titular)return c.titular;return deviceMe()}
 const srcName=t=>t.source==="cartao"?(cardById(txCard(t))?.name||"Cartão"):"Conta";
 
 /* ---------- persistência ---------- */
@@ -897,8 +947,9 @@ function renderAll(){ $("#exampleBanner").hidden=!state.example; renderSetup(); 
 function renderSetup(){
   const S=state.settings;
   const steps=[
+    [S.pessoas.some(p=>!/^Pessoa \d+$/.test(p.name)),"Cadastre as pessoas da casa","Nome de quem divide as finanças","#plano","Abrir"],
     [S.cards.some(c=>!/^Cartão \d+$/.test(c.name)||c.limite>0),"Cadastre seus cartões","Nome, fechamento, vencimento e limite de cada um","#plano","Abrir"],
-    [S.receitas.some(r=>r.valor>0),"Informe suas receitas","Salário e outras entradas do mês","#plano","Abrir"],
+    [S.receitas.some(r=>r.valor>0),"Informe as receitas","Um salário por linha, de cada pessoa","#plano","Abrir"],
     [S.fixas.some(f=>f.valor>0),"Liste as despesas fixas","Aluguel, contas, escola, assinaturas","#plano","Abrir"],
     [Object.values(S.metas||{}).some(v=>v>0)||S.poupanca>0,"Defina metas e poupança","Limite por categoria e quanto guardar","#plano","Abrir"],
     [!state.example&&state.tx.length>0,"Registre seus gastos","Importe extratos ou lance à mão","#importar","Importar"]];
@@ -931,7 +982,7 @@ function renderVisao(){
       <div class="nums"><span>Gasto<b>${money0(x.spent)}</b></span><span>Projeção<b>${money0(x.proj)}</b></span><span>Teto<b>${x.teto!=null?money0(x.teto):"—"}</b></span><span>Livre${x.perDay>0?` · ${money0(x.perDay)}/dia`:""}<b class="free ${x.safe!=null&&x.safe<=0?"neg":""}">${x.safe!=null?money0(x.safe):"—"}</b></span></div>
       ${x.upFixed||x.nextInst?`<div class="dt">${x.upFixed?`Fixas ainda por cair: ${money0(x.upFixed)}. `:""}${x.nextInst?`Parcelas na próxima fatura: ${money0(x.nextInst)}.`:""}</div>`:""}</div>`}).join("");
   const sel=$("#paceCard"),keep=sel.value; sel.innerHTML=c.cards.map(x=>`<option value="${x.card.id}">${esc(x.card.name)}</option>`).join(""); sel.value=c.cards.some(x=>x.card.id===keep)?keep:c.cards[0]?.id; sel.hidden=c.cards.length<2;
-  drawPace(); drawPvr(c); drawCats(c); drawMonths(c); drawInsights(c); drawRecurring(c); drawMerchants(c);
+  drawPace(); drawPeople(c); drawPvr(c); drawCats(c); drawMonths(c); drawInsights(c); drawRecurring(c); drawMerchants(c);
 }
 $("#paceCard").addEventListener("change",drawPace);
 function svgEl(w,h,inner){return `<svg viewBox="0 0 ${w} ${h}" role="img" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`}
@@ -960,6 +1011,18 @@ function drawPace(){
   $("#paceChart").innerHTML=svgEl(W,H,g);
 }
 const monthTx=k=>state.tx.filter(t=>monthKey(t.date)===k);
+function drawPeople(c){
+  const P=pessoas(); $("#peoplePanel").hidden=P.length<2; if(P.length<2)return;
+  $("#peopleTitle").textContent="Por pessoa em "+mLabel(c.cur);
+  const m=monthTx(c.cur), R=state.settings.receitas, totR=sum(R,r=>+r.valor||0);
+  const rows=[...P.map(p=>p.id),""].map(id=>({id,name:pName(id),rp:sum(R.filter(r=>(r.pessoa||"")===id),r=>+r.valor||0),rr:sum(m.filter(t=>whoOf(t)===id),income),g:sum(m.filter(t=>whoOf(t)===id),expense)})).filter(r=>r.id||r.rp||r.rr||r.g);
+  const pct=v=>totR?Math.round(v/totR*100)+"%":"—";
+  const maxR=Math.max(1,...rows.map(r=>r.rp));
+  const block=(name,rp,share,rr,g,total)=>`<div class="ccard"><div class="hd"><span class="nm">${esc(name)}</span>${share!=null?`<span class="pill ${total?"neutral":"ok"}">${share} da renda</span>`:""}</div>
+    ${total?"":`<div class="meter"><div class="fill" style="width:${rp/maxR*100}%;background:var(--income)"></div></div>`}
+    <div class="nums"><span>Renda prevista<b>${money0(rp)}</b></span><span>Já recebido<b>${money0(rr)}</b></span><span>Gastos no mês<b>${money0(g)}</b></span><span>Saldo do mês<b class="free ${rr-g<0?"neg":""}">${money0(rr-g)}</b></span></div></div>`;
+  $("#peopleBody").innerHTML=rows.map(r=>block(r.name,r.rp,totR?pct(r.rp):null,r.rr,r.g,false)).join("")+block("Total da casa",totR,null,sum(rows,r=>r.rr),sum(rows,r=>r.g),true);
+}
 function drawPvr(c){
   const S=state.settings, m=monthTx(c.cur);
   $("#pvrTitle").textContent="Plano x realizado em "+mLabel(c.cur);
@@ -1029,6 +1092,8 @@ function drawMerchants(c){
 function drawInsights(c){
   const out=[], cur=monthTx(c.cur), S=state.settings;
   const inc=sum(cur,income), exp=sum(cur,expense);
+  if(multi()&&c.rendaPlan>0){const parts=pessoas().map(p=>[p.name,sum(S.receitas.filter(r=>r.pessoa===p.id),r=>+r.valor||0)]).filter(x=>x[1]>0);
+    if(parts.length>1)out.push(`A renda prevista da casa soma <b class="num">${money0(c.rendaPlan)}</b>: ${parts.map(([n,v])=>`${esc(n)} ${Math.round(v/c.rendaPlan*100)}%`).join(", ")}.`)}
   if(c.rendaPlan>0){const sobra=c.rendaPlan-c.fixasTot-c.metasTot-(S.poupanca||0);
     out.push(sobra>=0?`Pelo plano, depois de fixas, metas e poupança sobram <b class="num">${money0(sobra)}</b> por mês.`:`O plano fecha <b>${money0(-sobra)} no vermelho</b>: fixas, metas e poupança passam das receitas.`)}
   if(inc>0)out.push(`Até agora em ${mLabel(c.cur)} entraram <b class="num">${money0(inc)}</b> e saíram <b class="num">${money0(exp)}</b> (${Math.round(exp/inc*100)}% das entradas).`);
@@ -1050,13 +1115,15 @@ function originOptions(withConta=true){return (withConta?`<option value="conta">
 function renderPlan(){
   const S=state.settings;
   const rows={
-    cards:S.cards.map((c,i)=>`<tr data-i="${i}"><td><input data-f="name" value="${esc(c.name)}" aria-label="Nome do cartão"></td><td class="d"><input data-f="fechamento" type="number" min="1" max="31" value="${c.fechamento}" aria-label="Dia de fechamento"></td><td class="d"><input data-f="vencimento" type="number" min="1" max="31" value="${c.vencimento}" aria-label="Dia de vencimento"></td><td class="n"><input data-f="limite" data-m inputmode="decimal" value="${fmtIn(c.limite)}" placeholder="0,00" aria-label="Limite"></td><td class="n"><input data-f="teto" data-m inputmode="decimal" value="${fmtIn(c.teto)}" placeholder="Automático" aria-label="Teto fixo"></td><td><button class="x" data-rm aria-label="Remover cartão" ${S.cards.length<2?"disabled":""}>×</button></td></tr>`),
-    receitas:S.receitas.map((r,i)=>`<tr data-i="${i}"><td><input data-f="nome" value="${esc(r.nome)}" placeholder="Ex.: Salário" aria-label="Descrição"></td><td class="n"><input data-f="valor" data-m inputmode="decimal" value="${fmtIn(r.valor)}" placeholder="0,00" aria-label="Valor"></td><td class="d"><input data-f="dia" type="number" min="1" max="31" value="${r.dia||""}" aria-label="Dia"></td><td><button class="x" data-rm aria-label="Remover receita">×</button></td></tr>`),
-    fixas:S.fixas.map((f,i)=>`<tr data-i="${i}"><td><input data-f="nome" value="${esc(f.nome)}" placeholder="Ex.: Aluguel" aria-label="Descrição"></td><td class="n"><input data-f="valor" data-m inputmode="decimal" value="${fmtIn(f.valor)}" placeholder="0,00" aria-label="Valor"></td><td class="d"><input data-f="dia" type="number" min="1" max="31" value="${f.dia||""}" aria-label="Dia"></td><td><select data-f="pago" aria-label="Pago com">${originOptions()}</select></td><td><select data-f="cat" aria-label="Categoria">${SPEND_CATS.map(c=>`<option>${c}</option>`).join("")}</select></td><td><button class="x" data-rm aria-label="Remover despesa">×</button></td></tr>`)
+    pessoas:S.pessoas.map((p,i)=>`<tr data-i="${i}"><td><input data-f="name" value="${esc(p.name)}" aria-label="Nome da pessoa"></td><td style="width:44px"><button class="x" data-rm aria-label="Remover pessoa" ${S.pessoas.length<2?"disabled":""}>×</button></td></tr>`),
+    cards:S.cards.map((c,i)=>`<tr data-i="${i}"><td><input data-f="name" value="${esc(c.name)}" aria-label="Nome do cartão"></td><td><select data-f="titular" aria-label="Titular">${personOptions()}</select></td><td class="d"><input data-f="fechamento" type="number" min="1" max="31" value="${c.fechamento}" aria-label="Dia de fechamento"></td><td class="d"><input data-f="vencimento" type="number" min="1" max="31" value="${c.vencimento}" aria-label="Dia de vencimento"></td><td class="n"><input data-f="limite" data-m inputmode="decimal" value="${fmtIn(c.limite)}" placeholder="0,00" aria-label="Limite"></td><td class="n"><input data-f="teto" data-m inputmode="decimal" value="${fmtIn(c.teto)}" placeholder="Automático" aria-label="Teto fixo"></td><td><button class="x" data-rm aria-label="Remover cartão" ${S.cards.length<2?"disabled":""}>×</button></td></tr>`),
+    receitas:S.receitas.map((r,i)=>`<tr data-i="${i}"><td><input data-f="nome" value="${esc(r.nome)}" placeholder="Ex.: Salário" aria-label="Descrição"></td><td><select data-f="pessoa" aria-label="De quem">${personOptions()}</select></td><td class="n"><input data-f="valor" data-m inputmode="decimal" value="${fmtIn(r.valor)}" placeholder="0,00" aria-label="Valor"></td><td class="d"><input data-f="dia" type="number" min="1" max="31" value="${r.dia||""}" aria-label="Dia"></td><td><button class="x" data-rm aria-label="Remover receita">×</button></td></tr>`),
+    fixas:S.fixas.map((f,i)=>`<tr data-i="${i}"><td><input data-f="nome" value="${esc(f.nome)}" placeholder="Ex.: Aluguel" aria-label="Descrição"></td><td class="n"><input data-f="valor" data-m inputmode="decimal" value="${fmtIn(f.valor)}" placeholder="0,00" aria-label="Valor"></td><td class="d"><input data-f="dia" type="number" min="1" max="31" value="${f.dia||""}" aria-label="Dia"></td><td><select data-f="pago" aria-label="Pago com">${originOptions()}</select></td><td><select data-f="resp" aria-label="Responsável">${personOptions()}</select></td><td><select data-f="cat" aria-label="Categoria">${SPEND_CATS.map(c=>`<option>${c}</option>`).join("")}</select></td><td><button class="x" data-rm aria-label="Remover despesa">×</button></td></tr>`)
   };
   for(const k of Object.keys(rows)){const tb=document.querySelector(`tbody[data-list="${k}"]`);if(tb.contains(document.activeElement))continue;
     tb.innerHTML=rows[k].join("")||`<tr><td colspan="6" class="empty">Nada cadastrado ainda.</td></tr>`;
-    if(k==="fixas")tb.querySelectorAll("tr[data-i]").forEach(tr=>{const f=S.fixas[+tr.dataset.i];tr.querySelector('[data-f="pago"]').value=f.pago||"conta";tr.querySelector('[data-f="cat"]').value=f.cat||"Outros"})}
+    tb.querySelectorAll("tr[data-i]").forEach(tr=>{const it=S[k][+tr.dataset.i];tr.querySelectorAll("select[data-f]").forEach(sel=>{const f=sel.dataset.f;sel.value=it[f]??(f==="pago"?"conta":f==="cat"?"Outros":"")})})}
+  document.querySelectorAll("table.edit").forEach(tb=>{const hs=[...tb.querySelectorAll("thead th")].map(th=>th.textContent);tb.querySelectorAll("tbody tr[data-i]").forEach(tr=>[...tr.children].forEach((td,i)=>{if(hs[i])td.dataset.l=hs[i]}))});
   $("#totRec").textContent=money(sum(S.receitas,r=>+r.valor||0)); $("#totFix").textContent=money(sum(S.fixas,f=>+f.valor||0));
   const fixByCat={};for(const f of S.fixas)if(f.cat)fixByCat[f.cat]=(fixByCat[f.cat]||0)+(+f.valor||0);
   if(!$("#metas").contains(document.activeElement))$("#metas").innerHTML=SPEND_CATS.map(c=>`<label>${c}<input data-meta="${c}" inputmode="decimal" value="${fmtIn(S.metas[c])}" placeholder="Sem meta">${fixByCat[c]?`<small>+ ${money0(fixByCat[c])} em fixas</small>`:""}</label>`).join("");
@@ -1074,10 +1141,13 @@ document.querySelectorAll("tbody[data-list]").forEach(tb=>{
     const f=el.dataset.f;let v=el.value;
     if(el.hasAttribute("data-m")){v=numOrNull(v);el.value=fmtIn(v)} else if(el.type==="number"){v=Math.min(31,Math.max(1,parseInt(v)||1));el.value=v}
     else if(f==="name"||f==="nome")v=v.trim();
-    it[f]=v; persistSettingsSoon(); if(tb.dataset.list==="cards"&&f==="name"){renderAll();return} renderVisao(); renderPlanTotals();});
+    it[f]=v; persistSettingsSoon(); if((tb.dataset.list==="cards"&&f==="name")||tb.dataset.list==="pessoas"||f==="titular"){renderAll();return} renderVisao(); renderPlanTotals();});
   tb.addEventListener("click",e=>{if(!e.target.closest("[data-rm]"))return;const k=tb.dataset.list;const i=+e.target.closest("tr").dataset.i;
     if(k==="cards"){const id=state.settings.cards[i].id;if(state.tx.some(t=>t.card===id)&&!state.example){toast("Esse cartão tem lançamentos. Mova ou exclua os lançamentos antes de remover.");return}
       state.settings.fixas.forEach(f=>{if(f.pago==="card:"+id)f.pago="conta"})}
+    if(k==="pessoas"){const id=state.settings.pessoas[i].id,S=state.settings;
+      S.receitas.forEach(r=>{if(r.pessoa===id)r.pessoa=""});S.fixas.forEach(f=>{if(f.resp===id)f.resp=""});S.cards.forEach(c=>{if(c.titular===id)c.titular=""});
+      const ms=new Set();state.tx.forEach(t=>{if(t.quem===id){t.quem="";ms.add(monthKey(t.date))}});if(!state.example&&ms.size)persist([...ms])}
     state.settings[k].splice(i,1); persistSettingsSoon(); renderAll();});
 });
 function renderPlanTotals(){ // atualiza só resumos sem recriar os campos em edição
@@ -1088,8 +1158,9 @@ function renderPlanTotals(){ // atualiza só resumos sem recriar os campos em ed
   if(keep&&keep.focus)keep.focus();
 }
 document.querySelectorAll("[data-add]").forEach(b=>b.addEventListener("click",()=>{const k=b.dataset.add,S=state.settings;
+  if(k==="pessoas")S.pessoas.push({id:"p"+uid(),name:"Pessoa "+(S.pessoas.length+1)});
   if(k==="cards")S.cards.push({id:"c"+uid(),name:"Cartão "+(S.cards.length+1),fechamento:25,vencimento:5,limite:null,teto:null});
-  if(k==="receitas")S.receitas.push({id:uid(),nome:"",valor:null,dia:5});
+  if(k==="receitas")S.receitas.push({id:uid(),nome:"",valor:null,dia:5,pessoa:S.pessoas[S.receitas.length%Math.max(1,S.pessoas.length)]?.id||""});
   if(k==="fixas")S.fixas.push({id:uid(),nome:"",valor:null,dia:10,pago:"conta",cat:"Moradia"});
   persistSettingsSoon(); renderAll();
   const tb=document.querySelector(`tbody[data-list="${k}"]`);const last=tb.querySelector("tr:last-child input");if(last){last.focus();last.select()}}));
@@ -1121,11 +1192,13 @@ function fillSelects(){
 }
 function renderTx(){
   fillOrigins(); fillSelects();
-  const m=$("#fMonth").value,s=$("#fSrc").value,cat=$("#fCat").value,q=norm($("#fSearch").value);
+  const fp=$("#fPes"),kp=fp.value; fp.innerHTML=`<option value="">Todas as pessoas</option>`+[...pessoas().map(p=>[p.id,p.name]),["_c","Conjunto"]].map(([v,n])=>`<option value="${v}">${esc(n)}</option>`).join(""); fp.value=[...fp.options].some(o=>o.value===kp)?kp:""; fp.hidden=!multi();
+  const m=$("#fMonth").value,s=$("#fSrc").value,cat=$("#fCat").value,q=norm($("#fSearch").value),pf=fp.value;
+  const matchPes=t=>!pf||whoOf(t)===(pf==="_c"?"":pf);
   const matchSrc=t=>!s||(s==="conta"?t.source==="conta":(t.source==="cartao"&&"card:"+txCard(t)===s));
-  const rows=state.tx.filter(t=>(!m||monthKey(t.date)===m)&&matchSrc(t)&&(!cat||t.cat===cat)&&(!q||norm(t.desc).includes(q))).sort((a,b)=>b.date.localeCompare(a.date)||a.desc.localeCompare(b.desc));
+  const rows=state.tx.filter(t=>(!m||monthKey(t.date)===m)&&matchSrc(t)&&matchPes(t)&&(!cat||t.cat===cat)&&(!q||norm(t.desc).includes(q))).sort((a,b)=>b.date.localeCompare(a.date)||a.desc.localeCompare(b.desc));
   const opts=CATS.map(c=>`<option>${c}</option>`).join(""), shown=rows.slice(0,600);
-  $("#txBody").innerHTML=shown.length?shown.map(t=>{const d=parseYmd(t.date);return `<tr data-id="${t.id}"><td class="num">${ddmm(d)}/${String(d.getFullYear()).slice(2)}</td><td>${esc(t.desc)}${t.manual===2?' <small class="note">· manual</small>':""}</td><td><span class="src ${t.source}">${esc(srcName(t))}</span></td><td><select aria-label="Categoria" data-cat>${opts}</select></td><td class="amt ${t.amount>0?"pos":""}">${money(t.amount)}</td><td style="white-space:nowrap"><button class="x" data-edit title="Editar lançamento" aria-label="Editar lançamento">✎</button><button class="x" data-del title="Excluir lançamento" aria-label="Excluir lançamento">×</button></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">Nenhum lançamento encontrado.</td></tr>`;
+  $("#txBody").innerHTML=shown.length?shown.map(t=>{const d=parseYmd(t.date);return `<tr data-id="${t.id}"><td class="num">${ddmm(d)}/${String(d.getFullYear()).slice(2)}</td><td>${esc(t.desc)}${multi()?` <small class="note">· ${esc(pName(whoOf(t)))}</small>`:""}${t.manual===2?' <small class="note">· manual</small>':""}</td><td><span class="src ${t.source}">${esc(srcName(t))}</span></td><td><select aria-label="Categoria" data-cat>${opts}</select></td><td class="amt ${t.amount>0?"pos":""}">${money(t.amount)}</td><td style="white-space:nowrap"><button class="x" data-edit title="Editar lançamento" aria-label="Editar lançamento">✎</button><button class="x" data-del title="Excluir lançamento" aria-label="Excluir lançamento">×</button></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">Nenhum lançamento encontrado.</td></tr>`;
   $("#txBody").querySelectorAll("tr[data-id]").forEach((tr,i)=>{tr.querySelector("select").value=shown[i].cat});
   $("#txCount").textContent=`${rows.length} lançamento${rows.length===1?"":"s"}${rows.length>600?" · mostrando os 600 mais recentes":""}`;
   $("#txSum").textContent="Saldo do filtro: "+money(sum(rows,t=>t.amount));
@@ -1148,7 +1221,7 @@ $("#txBody").addEventListener("click",e=>{
   if(!e.target.closest("[data-del]"))return;const t=state.tx.find(x=>x.id===e.target.closest("tr").dataset.id);if(!t)return;
   state.tx=state.tx.filter(x=>x!==t); if(!state.example)persist([monthKey(t.date)]); renderAll(); toast("Lançamento excluído.");
 });
-["fMonth","fSrc","fCat"].forEach(id=>$("#"+id).addEventListener("change",()=>{if(id==="fMonth")$("#fMonth").dataset.touched="1";renderTx()}));
+["fMonth","fSrc","fCat","fPes"].forEach(id=>$("#"+id).addEventListener("change",()=>{if(id==="fMonth")$("#fMonth").dataset.touched="1";renderTx()}));
 $("#fSearch").addEventListener("input",renderTx);
 /* ---------- lançamento manual ---------- */
 let editId=null;
@@ -1162,6 +1235,8 @@ function openSheet(t){
   if(t){setType(t.amount>0?"in":"out");$("#aVal").value=fmtIn(Math.abs(t.amount));$("#aDesc").value=t.desc;$("#aDate").value=t.date;$("#aSrc").value=t.source==="conta"?"conta":"card:"+txCard(t);$("#aCat").value=t.cat}
   else{setType("out");$("#aVal").value="";$("#aDesc").value="";$("#aDate").value=ymd(new Date());$("#aCat").value="";
     const v=location.hash==="#lancamentos"&&$("#fSrc").value;if(v&&[...$("#aSrc").options].some(o=>o.value===v))$("#aSrc").value=v}
+  $("#aQuem").innerHTML=personOptions(); $("#quemWrap").hidden=!multi();
+  $("#aQuem").value=t?whoOf(t):defaultQuem($("#aSrc").value);
   $("#aParc").value="1"; $("#delInSheet").hidden=!t; $("#saveMore").hidden=!!t;
   updateParc(); $("#sheet").hidden=false; setTimeout(()=>$("#aVal").focus(),30);
 }
@@ -1175,11 +1250,12 @@ function updateParc(){
   else $("#parcNote").textContent="";
 }
 ["aVal","aDate","aParc","aSrc"].forEach(id=>$("#"+id).addEventListener("input",updateParc));
+$("#aSrc").addEventListener("change",()=>{if(editId)return;const v=$("#aSrc").value,c=v.startsWith("card:")&&cardById(v.slice(5));if(c&&c.titular)$("#aQuem").value=c.titular});
 document.querySelectorAll('input[name="aType"]').forEach(r=>r.addEventListener("change",updateParc));
 $("#aDesc").addEventListener("change",()=>{ if(editId)return;
   const k=norm($("#aDesc").value); if(!k)return;
   const prev=state.tx.filter(t=>norm(t.desc)===k).sort((a,b)=>b.date.localeCompare(a.date))[0];
-  if(prev){ if(!$("#aCat").value)$("#aCat").value=prev.cat; $("#aSrc").value=prev.source==="conta"?"conta":"card:"+txCard(prev); setType(prev.amount>0?"in":"out"); if(!$("#aVal").value)$("#aVal").value=fmtIn(Math.abs(prev.amount)); updateParc() }
+  if(prev){ if(!$("#aCat").value)$("#aCat").value=prev.cat; $("#aSrc").value=prev.source==="conta"?"conta":"card:"+txCard(prev); setType(prev.amount>0?"in":"out"); $("#aQuem").value=whoOf(prev); if(!$("#aVal").value)$("#aVal").value=fmtIn(Math.abs(prev.amount)); updateParc() }
 });
 function saveSheet(more){
   const v=numOrNull($("#aVal").value), desc=$("#aDesc").value.trim(), date=$("#aDate").value;
@@ -1187,11 +1263,12 @@ function saveSheet(more){
   if(!desc){toast("Informe uma descrição.");$("#aDesc").focus();return}
   if(!date){toast("Informe a data.");$("#aDate").focus();return}
   const o=$("#aSrc").value, type=sheetType(), chosen=$("#aCat").value;
+  if(multi()&&!editId){try{if($("#aQuem").value)localStorage.setItem("folego.me",$("#aQuem").value)}catch(e){}}
   const base={source:o==="conta"?"conta":"cartao"}; if(o!=="conta")base.card=o.slice(5);
   if(editId){
     const t=state.tx.find(x=>x.id===editId); if(!t){closeSheet();return}
     const oldM=monthKey(t.date);
-    Object.assign(t,{desc,date,amount:type==="in"?v:-v,source:base.source}); if(base.card)t.card=base.card;else delete t.card;
+    Object.assign(t,{desc,date,amount:type==="in"?v:-v,source:base.source}); if(multi())t.quem=$("#aQuem").value; if(base.card)t.card=base.card;else delete t.card;
     t.cat=chosen||categorize(t); if(chosen)t.manual=t.manual||1;
     if(!state.example)persist([oldM,monthKey(date)]);
     closeSheet(); renderAll(); toast("Lançamento atualizado."); return;
@@ -1202,7 +1279,7 @@ function saveSheet(more){
   for(let i=0;i<n;i++){
     const d=clampDay(d0.getFullYear(),d0.getMonth()+i,d0.getDate());
     const cents=i===n-1?total-per*(n-1):per;
-    const t={id:"m"+gid+i+Date.now().toString(36),date:ymd(d),desc:n>1?`${desc} PARCELA ${i+1}/${n}`:desc,amount:(type==="in"?1:-1)*cents/100,...base,manual:2};
+    const t={id:"m"+gid+i+Date.now().toString(36),date:ymd(d),desc:n>1?`${desc} PARCELA ${i+1}/${n}`:desc,amount:(type==="in"?1:-1)*cents/100,...base,manual:2}; if(multi())t.quem=$("#aQuem").value;
     t.cat=chosen||categorize(t); state.tx.push(t); months.add(monthKey(t.date));
   }
   persist([...months]); renderAll();
@@ -1226,24 +1303,26 @@ async function stage(files){
     let origin="conta";
     if(p.acct&&state.settings.acctMap[p.acct]&&(state.settings.acctMap[p.acct]==="conta"||cardById(state.settings.acctMap[p.acct].slice(5))))origin=state.settings.acctMap[p.acct];
     else if(p.source==="cartao"){const n=norm(f.name);const byName=state.settings.cards.find(c=>norm(c.name).length>=3&&n.includes(norm(c.name)));origin="card:"+(byName||state.settings.cards[0]).id}
-    staged.push({name:f.name,parsed:p,origin})}
+    staged.push({name:f.name,parsed:p,origin,quem:defaultQuem(origin)})}
   renderStaged();
 }
 function renderStaged(){
   const existing=new Set(state.example?[]:state.tx.map(t=>t.id)); let totalNew=0;
   $("#preview").innerHTML=staged.map((s,i)=>{
     if(s.parsed.error||!s.parsed.rows.length)return `<div class="pv"><div><b>${esc(s.name)}</b><div class="err">${esc(s.parsed.error||"Nenhum lançamento encontrado")}. Confira se é um OFX ou CSV com colunas de data, descrição e valor.</div></div><span></span><button class="x" data-rm="${i}" aria-label="Remover arquivo">×</button></div>`;
-    const tx=buildTx(s.parsed,s.origin); s.tx=tx; const nw=tx.filter(t=>!existing.has(t.id)).length; totalNew+=nw;
+    const tx=buildTx(s.parsed,s.origin); if(multi())tx.forEach(t=>t.quem=s.quem||""); s.tx=tx; const nw=tx.filter(t=>!existing.has(t.id)).length; totalNew+=nw;
     const ds=tx.map(t=>t.date).sort();
     return `<div class="pv"><div style="min-width:0"><b>${esc(s.name)}</b><div class="meta">${s.parsed.kind} · ${tx.length} lançamentos de ${ddmm(parseYmd(ds[0]))} a ${ddmm(parseYmd(ds[ds.length-1]))} · <b>${nw} novos</b>${tx.length-nw?`, ${tx.length-nw} já importados`:""}</div></div>
-      <select data-src="${i}" aria-label="Origem do arquivo">${originOptions()}</select>
+      <div class="pvsel"><select data-src="${i}" aria-label="Origem do arquivo">${originOptions()}</select>${multi()?`<select data-quem="${i}" aria-label="De quem é o arquivo">${personOptions()}</select>`:""}</div>
       <button class="x" data-rm="${i}" aria-label="Remover arquivo">×</button></div>`}).join("");
   $("#preview").querySelectorAll("[data-src]").forEach(el=>el.value=staged[+el.dataset.src].origin);
+  $("#preview").querySelectorAll("[data-quem]").forEach(el=>el.value=staged[+el.dataset.quem].quem||"");
   $("#importActions").hidden=!staged.length; $("#doImport").disabled=!totalNew;
   $("#doImport").textContent=totalNew?`Importar ${totalNew} lançamento${totalNew>1?"s":""} novo${totalNew>1?"s":""}`:"Nada novo para importar";
   $("#importNote").textContent=state.example&&totalNew?"Os lançamentos de exemplo serão removidos.":"";
 }
-$("#preview").addEventListener("change",e=>{const el=e.target.closest("[data-src]");if(el){staged[+el.dataset.src].origin=el.value;renderStaged()}});
+$("#preview").addEventListener("change",e=>{const el=e.target.closest("[data-src]");if(el){const st=staged[+el.dataset.src];st.origin=el.value;st.quem=defaultQuem(el.value);renderStaged();return}
+  const q=e.target.closest("[data-quem]");if(q){staged[+q.dataset.quem].quem=q.value;renderStaged()}});
 $("#preview").addEventListener("click",e=>{const el=e.target.closest("[data-rm]");if(el){staged.splice(+el.dataset.rm,1);renderStaged()}});
 $("#fileIn").addEventListener("change",e=>{stage([...e.target.files]);e.target.value=""});
 const drop=$("#drop");

@@ -322,6 +322,12 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
       <p class="note" style="margin:10px 0 0">Gastos sem pessoa definida, ou em cartão sem titular, entram em Conjunto. Para atribuir, toque em ✎ no lançamento.</p>
     </div>
 
+    <div class="panel" id="acctPanel" hidden>
+      <h2 id="acctTitle">Contas bancárias</h2>
+      <p class="sub">Entradas e saídas de cada conta no mês, contando também pagamentos de fatura e transferências. A data do último lançamento mostra se o extrato está em dia.</p>
+      <div class="cardlist" id="acctBody"></div>
+    </div>
+
     <div class="grid2">
       <div class="panel">
         <h2 id="pvrTitle">Plano x realizado</h2>
@@ -377,6 +383,12 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
       <div class="edithead"><h2>Pessoas da casa</h2><button class="small" data-add="pessoas">Adicionar pessoa</button></div>
       <p class="sub">Quem divide as finanças. Cada receita, despesa fixa, cartão e lançamento pode ser de uma pessoa ou do conjunto.</p>
       <div class="tablewrap"><table class="edit" style="min-width:0"><thead><tr><th>Nome</th><th></th></tr></thead><tbody data-list="pessoas"></tbody></table></div>
+    </div>
+
+    <div class="panel">
+      <div class="edithead"><h2>Contas bancárias</h2><button class="small" data-add="contas">Adicionar conta</button></div>
+      <p class="sub">Uma linha para cada conta corrente ou digital, por exemplo “Itaú da Ana” ou “Nubank do João”. Você escolhe a conta ao importar um extrato e ao lançar à mão.</p>
+      <div class="tablewrap"><table class="edit" style="min-width:0"><thead><tr><th>Nome</th><th>Titular</th><th></th></tr></thead><tbody data-list="contas"></tbody></table></div>
     </div>
 
     <div class="panel">
@@ -451,6 +463,7 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
             <p>Faça nesta ordem. O quadro <span class="ui">Comece por aqui</span>, no topo da Visão geral, marca cada etapa concluída.</p>
             <ol>
               <li><b>Cadastre as pessoas da casa</b> em <span class="ui">Plano do mês › Pessoas da casa</span>. Troque “Pessoa 1” e “Pessoa 2” pelos nomes e adicione mais pessoas se precisar.</li>
+              <li><b>Cadastre suas contas bancárias</b> em <span class="ui">Plano do mês › Contas bancárias</span>: uma linha para cada banco ou conta digital, com o titular. Use <span class="ui">Adicionar conta</span> para cada uma.</li>
               <li><b>Cadastre seus cartões</b> em <span class="ui">Plano do mês › Cartões de crédito</span>: nome, dia de fechamento, dia de vencimento e limite. Use <span class="ui">Adicionar cartão</span> para cada um.</li>
               <li><b>Informe as receitas</b>: uma linha para cada salário ou renda, com o valor, o dia em que cai e de quem é. Use <span class="ui">Adicionar receita</span> quantas vezes precisar.</li>
               <li><b>Liste as despesas fixas</b>: aluguel, condomínio, escola, plano de saúde, assinaturas. Para cada uma, diga se sai da conta ou de qual cartão.</li>
@@ -501,7 +514,7 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
             <ol>
               <li>No app do banco, procure <span class="ui">Extrato</span> ou <span class="ui">Fatura</span> e a opção <span class="ui">Exportar</span> ou <span class="ui">Compartilhar</span>. Prefira o formato <b>OFX</b>; <b>CSV</b> também funciona.</li>
               <li>Abra a aba <span class="ui">Importar</span> e solte os arquivos ou toque para escolher. Pode ser mais de um de uma vez.</li>
-              <li>Para cada arquivo, confira se a origem está certa: <b>Conta</b> ou o <b>cartão</b> da fatura.</li>
+              <li>Para cada arquivo, confira se a origem está certa: a <b>conta bancária</b> do extrato ou o <b>cartão</b> da fatura. Se o nome do arquivo tiver o nome da conta ou do cartão, o app já escolhe sozinho.</li>
               <li>Toque em <span class="ui">Importar</span>. O app mostra quantos lançamentos são novos e quantos já existiam.</li>
             </ol>
             <p class="tip">Pode importar o mesmo arquivo todos os dias: o que já foi importado é ignorado. Arquivos OFX do mesmo cartão são reconhecidos automaticamente nas próximas vezes.</p>
@@ -737,7 +750,7 @@ const expense=t=>EXCLUDED.has(t.cat)?0:-t.amount;
 const income=t=>t.cat==="Receita"?t.amount:0;
 
 /* ---------- estado ---------- */
-function defaults(){return{poupanca:0,cards:[{id:"c1",name:"Cartão 1",fechamento:25,vencimento:5,limite:null,teto:null}],receitas:[],fixas:[],metas:{},rules:[],acctMap:{},pessoas:[{id:"p1",name:"Pessoa 1"},{id:"p2",name:"Pessoa 2"}]}}
+function defaults(){return{poupanca:0,cards:[{id:"c1",name:"Cartão 1",fechamento:25,vencimento:5,limite:null,teto:null}],receitas:[],fixas:[],metas:{},rules:[],acctMap:{},pessoas:[{id:"p1",name:"Pessoa 1"},{id:"p2",name:"Pessoa 2"}],contas:[{id:"a1",name:"Conta principal",titular:""}]}}
 const state={tx:[],settings:defaults(),example:false};
 let store={mode:"memory"};
 function migrate(s){
@@ -746,18 +759,25 @@ function migrate(s){
   if(!o.receitas.length&&s.renda>0)o.receitas=[{id:uid(),nome:"Renda mensal",valor:s.renda,dia:5}];
   delete o.renda;delete o.fechamento;delete o.vencimento;delete o.limite;delete o.teto;
   o.pessoas=Array.isArray(o.pessoas)&&o.pessoas.length?o.pessoas:d.pessoas;o.rules=o.rules||[];o.metas=o.metas||{};o.acctMap=o.acctMap||{};o.fixas=o.fixas||[];o.receitas=o.receitas||[];
+  o.contas=Array.isArray(o.contas)&&o.contas.length?o.contas:d.contas;
+  const a0="conta:"+o.contas[0].id; o.fixas.forEach(f=>{if(!f.pago||f.pago==="conta")f.pago=a0}); for(const k in o.acctMap)if(o.acctMap[k]==="conta")o.acctMap[k]=a0;
   return o;
 }
 const cardById=id=>state.settings.cards.find(c=>c.id===id);
+const contas=()=>state.settings.contas||[];
+const acctById=id=>contas().find(a=>a.id===id);
+const txConta=t=>t.source==="conta"?(acctById(t.conta)?t.conta:contas()[0]?.id):null;
+const originOf=t=>t.source==="conta"?"conta:"+txConta(t):"card:"+txCard(t);
+const firstAcct=()=>"conta:"+(contas()[0]?.id||"a1");
 const txCard=t=>t.source==="cartao"?(cardById(t.card)?t.card:state.settings.cards[0]?.id):null;
 const pessoas=()=>state.settings.pessoas||[];
 const multi=()=>pessoas().length>1;
 const pName=id=>id?(pessoas().find(p=>p.id===id)?.name||"—"):"Conjunto";
-const whoOf=t=>t.quem!=null?t.quem:(t.source==="cartao"?(cardById(txCard(t))?.titular||""):"");
+const whoOf=t=>t.quem!=null?t.quem:(t.source==="cartao"?(cardById(txCard(t))?.titular||""):(acctById(txConta(t))?.titular||""));
 const personOptions=()=>`<option value="">Conjunto</option>`+pessoas().map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
 function deviceMe(){try{const m=localStorage.getItem("folego.me");if(m&&pessoas().some(p=>p.id===m))return m}catch(e){}return ""}
-function defaultQuem(origin){const c=origin&&origin.startsWith("card:")&&cardById(origin.slice(5));if(c&&c.titular)return c.titular;return deviceMe()}
-const srcName=t=>t.source==="cartao"?(cardById(txCard(t))?.name||"Cartão"):"Conta";
+function defaultQuem(origin){const c=origin&&(origin.startsWith("card:")?cardById(origin.slice(5)):acctById(origin.slice(6)));if(c&&c.titular)return c.titular;return deviceMe()}
+const srcName=t=>t.source==="cartao"?(cardById(txCard(t))?.name||"Cartão"):(acctById(txConta(t))?.name||"Conta");
 
 /* ---------- persistência ---------- */
 const LS="folego.v1";
@@ -880,17 +900,17 @@ function parseCSV(text,name){
   return {rows,source:card?"cartao":"conta",kind:"CSV",acct:""};
 }
 function buildTx(parsed,origin){
-  const source=origin==="conta"?"conta":"cartao", card=source==="cartao"?origin.slice(5):undefined;
+  const isAcct=origin.startsWith("conta"), source=isAcct?"conta":"cartao", card=isAcct?undefined:origin.slice(5), acct=isAcct?(origin.slice(6)||contas()[0]?.id):undefined;
   let rows=parsed.rows;
   if(source==="cartao"){
     const non=rows.filter(r=>!/PAGAMENTO|ESTORNO|CREDITO/.test(norm(r.desc)));
     const pos=non.filter(r=>r.amount>0).length; if(non.length&&pos/non.length>0.6)rows=rows.map(r=>({...r,amount:-r.amount}));
   }
   const seen={};
-  return rows.map(r=>{const scope=source==="cartao"?"cartao:"+card:"conta";
+  return rows.map(r=>{const scope=source==="cartao"?"cartao:"+card:(!acct||acct==="a1"?"conta":"conta:"+acct);
     const base=r.fitid?("f|"+scope+"|"+r.fitid):(scope+"|"+r.date+"|"+r.amount.toFixed(2)+"|"+norm(r.desc));seen[base]=(seen[base]||0)+1;
     const t={id:hash(base+"#"+seen[base]),date:r.date,desc:r.desc,amount:Math.round(r.amount*100)/100,source};
-    if(card)t.card=card; t.cat=categorize(t); return t});
+    if(card)t.card=card; if(acct)t.conta=acct; t.cat=categorize(t); return t});
 }
 
 /* ---------- cálculos ---------- */
@@ -912,7 +932,7 @@ function compute(){
   const incomeAvg=avgOf(income), contaAvg=avgOf(t=>t.source==="conta"?expense(t):0);
   const rendaPlan=sum(S.receitas,r=>+r.valor||0);
   const renda=rendaPlan>0?rendaPlan:incomeAvg;
-  const fixasConta=sum(S.fixas.filter(f=>f.pago==="conta"),f=>+f.valor||0);
+  const fixasConta=sum(S.fixas.filter(f=>(f.pago||"conta").startsWith("conta")),f=>+f.valor||0);
   const contaOut=Math.max(contaAvg||0,fixasConta);
   const pool=renda>0?renda-(S.poupanca||0)-contaOut:null;
   // por cartão
@@ -998,7 +1018,7 @@ function renderVisao(){
       <div class="nums"><span>Gasto<b>${money0(x.spent)}</b></span><span>Projeção<b>${money0(x.proj)}</b></span><span>Teto<b>${x.teto!=null?money0(x.teto):"—"}</b></span><span>Livre${x.perDay>0?` · ${money0(x.perDay)}/dia`:""}<b class="free ${x.safe!=null&&x.safe<=0?"neg":""}">${x.safe!=null?money0(x.safe):"—"}</b></span></div>
       ${x.upFixed||x.nextInst?`<div class="dt">${x.upFixed?`Fixas ainda por cair: ${money0(x.upFixed)}. `:""}${x.nextInst?`Parcelas na próxima fatura: ${money0(x.nextInst)}.`:""}</div>`:""}</div>`}).join("");
   const sel=$("#paceCard"),keep=sel.value; sel.innerHTML=c.cards.map(x=>`<option value="${x.card.id}">${esc(x.card.name)}</option>`).join(""); sel.value=c.cards.some(x=>x.card.id===keep)?keep:c.cards[0]?.id; sel.hidden=c.cards.length<2;
-  drawPace(); drawPeople(c); drawPvr(c); drawCats(c); drawMonths(c); drawInsights(c); drawRecurring(c); drawMerchants(c);
+  drawPace(); drawPeople(c); drawAccounts(c); drawPvr(c); drawCats(c); drawMonths(c); drawInsights(c); drawRecurring(c); drawMerchants(c);
 }
 $("#paceCard").addEventListener("change",drawPace);
 function svgEl(w,h,inner){return `<svg viewBox="0 0 ${w} ${h}" role="img" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`}
@@ -1027,6 +1047,18 @@ function drawPace(){
   $("#paceChart").innerHTML=svgEl(W,H,g);
 }
 const monthTx=k=>state.tx.filter(t=>monthKey(t.date)===k);
+function drawAccounts(c){
+  const A=contas(); $("#acctPanel").hidden=A.length<2; if(A.length<2)return;
+  $("#acctTitle").textContent="Contas bancárias em "+mLabel(c.cur);
+  const all=state.tx.filter(t=>t.source==="conta"), m=all.filter(t=>monthKey(t.date)===c.cur);
+  $("#acctBody").innerHTML=A.map(a=>{
+    const mine=m.filter(t=>txConta(t)===a.id), ent=sum(mine.filter(t=>t.amount>0),t=>t.amount), sai=sum(mine.filter(t=>t.amount<0),t=>-t.amount);
+    const last=all.filter(t=>txConta(t)===a.id).map(t=>t.date).sort().pop();
+    const age=last?dayDiff(parseYmd(last),c.T):null;
+    const pill=last==null?`<span class="pill neutral">Sem lançamentos</span>`:age<=3?`<span class="pill ok">Em dia</span>`:`<span class="pill warn">${age} dias sem lançamento</span>`;
+    return `<div class="ccard"><div class="hd"><span><span class="nm">${esc(a.name)}</span>${multi()?` <span class="dt">${esc(pName(a.titular||""))}</span>`:""}</span>${pill}</div>
+      <div class="nums"><span>Entradas<b>${money0(ent)}</b></span><span>Saídas<b>${money0(sai)}</b></span><span>Movimento do mês<b class="free ${ent-sai<0?"neg":""}">${money0(ent-sai)}</b></span><span>Último lançamento<b>${last?ddmm(parseYmd(last)):"—"}</b></span></div></div>`}).join("");
+}
 function drawPeople(c){
   const P=pessoas(); $("#peoplePanel").hidden=P.length<2; if(P.length<2)return;
   $("#peopleTitle").textContent="Por pessoa em "+mLabel(c.cur);
@@ -1127,10 +1159,11 @@ function drawInsights(c){
 }
 
 /* ---------- plano do mês ---------- */
-function originOptions(withConta=true){return (withConta?`<option value="conta">Conta</option>`:"")+state.settings.cards.map(c=>`<option value="card:${c.id}">${esc(c.name)}</option>`).join("")}
+function originOptions(withConta=true){return (withConta?contas().map(a=>`<option value="conta:${a.id}">${esc(a.name)}</option>`).join(""):"")+state.settings.cards.map(c=>`<option value="card:${c.id}">${esc(c.name)}</option>`).join("")}
 function renderPlan(){
   const S=state.settings;
   const rows={
+    contas:S.contas.map((a,i)=>`<tr data-i="${i}"><td><input data-f="name" value="${esc(a.name)}" aria-label="Nome da conta"></td><td><select data-f="titular" aria-label="Titular">${personOptions()}</select></td><td style="width:44px"><button class="x" data-rm aria-label="Remover conta" ${S.contas.length<2?"disabled":""}>×</button></td></tr>`),
     pessoas:S.pessoas.map((p,i)=>`<tr data-i="${i}"><td><input data-f="name" value="${esc(p.name)}" aria-label="Nome da pessoa"></td><td style="width:44px"><button class="x" data-rm aria-label="Remover pessoa" ${S.pessoas.length<2?"disabled":""}>×</button></td></tr>`),
     cards:S.cards.map((c,i)=>`<tr data-i="${i}"><td><input data-f="name" value="${esc(c.name)}" aria-label="Nome do cartão"></td><td><select data-f="titular" aria-label="Titular">${personOptions()}</select></td><td class="d"><input data-f="fechamento" type="number" min="1" max="31" value="${c.fechamento}" aria-label="Dia de fechamento"></td><td class="d"><input data-f="vencimento" type="number" min="1" max="31" value="${c.vencimento}" aria-label="Dia de vencimento"></td><td class="n"><input data-f="limite" data-m inputmode="decimal" value="${fmtIn(c.limite)}" placeholder="0,00" aria-label="Limite"></td><td class="n"><input data-f="teto" data-m inputmode="decimal" value="${fmtIn(c.teto)}" placeholder="Automático" aria-label="Teto fixo"></td><td><button class="x" data-rm aria-label="Remover cartão" ${S.cards.length<2?"disabled":""}>×</button></td></tr>`),
     receitas:S.receitas.map((r,i)=>`<tr data-i="${i}"><td><input data-f="nome" value="${esc(r.nome)}" placeholder="Ex.: Salário" aria-label="Descrição"></td><td><select data-f="pessoa" aria-label="De quem">${personOptions()}</select></td><td class="n"><input data-f="valor" data-m inputmode="decimal" value="${fmtIn(r.valor)}" placeholder="0,00" aria-label="Valor"></td><td class="d"><input data-f="dia" type="number" min="1" max="31" value="${r.dia||""}" aria-label="Dia"></td><td><button class="x" data-rm aria-label="Remover receita">×</button></td></tr>`),
@@ -1138,7 +1171,7 @@ function renderPlan(){
   };
   for(const k of Object.keys(rows)){const tb=document.querySelector(`tbody[data-list="${k}"]`);if(tb.contains(document.activeElement))continue;
     tb.innerHTML=rows[k].join("")||`<tr><td colspan="6" class="empty">Nada cadastrado ainda.</td></tr>`;
-    tb.querySelectorAll("tr[data-i]").forEach(tr=>{const it=S[k][+tr.dataset.i];tr.querySelectorAll("select[data-f]").forEach(sel=>{const f=sel.dataset.f;sel.value=it[f]??(f==="pago"?"conta":f==="cat"?"Outros":"")})})}
+    tb.querySelectorAll("tr[data-i]").forEach(tr=>{const it=S[k][+tr.dataset.i];tr.querySelectorAll("select[data-f]").forEach(sel=>{const f=sel.dataset.f;sel.value=it[f]??(f==="pago"?firstAcct():f==="cat"?"Outros":"")})})}
   document.querySelectorAll("table.edit").forEach(tb=>{const hs=[...tb.querySelectorAll("thead th")].map(th=>th.textContent);tb.querySelectorAll("tbody tr[data-i]").forEach(tr=>[...tr.children].forEach((td,i)=>{if(hs[i])td.dataset.l=hs[i]}))});
   $("#totRec").textContent=money(sum(S.receitas,r=>+r.valor||0)); $("#totFix").textContent=money(sum(S.fixas,f=>+f.valor||0));
   const fixByCat={};for(const f of S.fixas)if(f.cat)fixByCat[f.cat]=(fixByCat[f.cat]||0)+(+f.valor||0);
@@ -1157,10 +1190,12 @@ document.querySelectorAll("tbody[data-list]").forEach(tb=>{
     const f=el.dataset.f;let v=el.value;
     if(el.hasAttribute("data-m")){v=numOrNull(v);el.value=fmtIn(v)} else if(el.type==="number"){v=Math.min(31,Math.max(1,parseInt(v)||1));el.value=v}
     else if(f==="name"||f==="nome")v=v.trim();
-    it[f]=v; persistSettingsSoon(); if((tb.dataset.list==="cards"&&f==="name")||tb.dataset.list==="pessoas"||f==="titular"){renderAll();return} renderVisao(); renderPlanTotals();});
+    it[f]=v; persistSettingsSoon(); if(((tb.dataset.list==="cards"||tb.dataset.list==="contas")&&f==="name")||tb.dataset.list==="pessoas"||f==="titular"){renderAll();return} renderVisao(); renderPlanTotals();});
   tb.addEventListener("click",e=>{if(!e.target.closest("[data-rm]"))return;const k=tb.dataset.list;const i=+e.target.closest("tr").dataset.i;
     if(k==="cards"){const id=state.settings.cards[i].id;if(state.tx.some(t=>t.card===id)&&!state.example){toast("Esse cartão tem lançamentos. Mova ou exclua os lançamentos antes de remover.");return}
-      state.settings.fixas.forEach(f=>{if(f.pago==="card:"+id)f.pago="conta"})}
+      state.settings.fixas.forEach(f=>{if(f.pago==="card:"+id)f.pago=firstAcct()})}
+    if(k==="contas"){const id=state.settings.contas[i].id;if(state.tx.some(t=>txConta(t)===id)&&!state.example){toast("Essa conta tem lançamentos. Mova ou exclua os lançamentos antes de remover.");return}
+      const other=state.settings.contas.find(a=>a.id!==id);state.settings.fixas.forEach(f=>{if(f.pago==="conta:"+id)f.pago="conta:"+(other?other.id:"a1")})}
     if(k==="pessoas"){const id=state.settings.pessoas[i].id,S=state.settings;
       S.receitas.forEach(r=>{if(r.pessoa===id)r.pessoa=""});S.fixas.forEach(f=>{if(f.resp===id)f.resp=""});S.cards.forEach(c=>{if(c.titular===id)c.titular=""});
       const ms=new Set();state.tx.forEach(t=>{if(t.quem===id){t.quem="";ms.add(monthKey(t.date))}});if(!state.example&&ms.size)persist([...ms])}
@@ -1174,10 +1209,11 @@ function renderPlanTotals(){ // atualiza só resumos sem recriar os campos em ed
   if(keep&&keep.focus)keep.focus();
 }
 document.querySelectorAll("[data-add]").forEach(b=>b.addEventListener("click",()=>{const k=b.dataset.add,S=state.settings;
+  if(k==="contas")S.contas.push({id:"a"+uid(),name:"Conta "+(S.contas.length+1),titular:""});
   if(k==="pessoas")S.pessoas.push({id:"p"+uid(),name:"Pessoa "+(S.pessoas.length+1)});
   if(k==="cards")S.cards.push({id:"c"+uid(),name:"Cartão "+(S.cards.length+1),fechamento:25,vencimento:5,limite:null,teto:null});
   if(k==="receitas")S.receitas.push({id:uid(),nome:"",valor:null,dia:5,pessoa:S.pessoas[S.receitas.length%Math.max(1,S.pessoas.length)]?.id||""});
-  if(k==="fixas")S.fixas.push({id:uid(),nome:"",valor:null,dia:10,pago:"conta",cat:"Moradia"});
+  if(k==="fixas")S.fixas.push({id:uid(),nome:"",valor:null,dia:10,pago:firstAcct(),cat:"Moradia"});
   persistSettingsSoon(); renderAll();
   const tb=document.querySelector(`tbody[data-list="${k}"]`);const last=tb.querySelector("tr:last-child input");if(last){last.focus();last.select()}}));
 $("#metas").addEventListener("change",e=>{const el=e.target.closest("[data-meta]");if(!el)return;const v=numOrNull(el.value);el.value=fmtIn(v);
@@ -1194,9 +1230,9 @@ $("#wipeBox").addEventListener("click",e=>{const b=e.target.closest("[data-w]");
 
 /* ---------- lançamentos ---------- */
 function fillOrigins(){
-  const opts=`<option value="">Conta e cartões</option><option value="conta">Só conta</option>`+state.settings.cards.map(c=>`<option value="card:${c.id}">Só ${esc(c.name)}</option>`).join("");
+  const opts=`<option value="">Contas e cartões</option><option value="conta">${contas().length>1?"Todas as contas":"Só conta"}</option>`+(contas().length>1?contas().map(a=>`<option value="conta:${a.id}">Só ${esc(a.name)}</option>`).join(""):"")+state.settings.cards.map(c=>`<option value="card:${c.id}">Só ${esc(c.name)}</option>`).join("");
   const fs=$("#fSrc"),k=fs.value;fs.innerHTML=opts;fs.value=[...fs.options].some(o=>o.value===k)?k:"";
-  const as=$("#aSrc"),ka=as.value;as.innerHTML=originOptions();as.value=[...as.options].some(o=>o.value===ka)?ka:"conta";
+  const as=$("#aSrc"),ka=as.value;as.innerHTML=originOptions();as.value=[...as.options].some(o=>o.value===ka)?ka:firstAcct();
 }
 function fillSelects(){
   const months=[...new Set(state.tx.map(t=>monthKey(t.date)))].sort().reverse();
@@ -1211,7 +1247,7 @@ function renderTx(){
   const fp=$("#fPes"),kp=fp.value; fp.innerHTML=`<option value="">Todas as pessoas</option>`+[...pessoas().map(p=>[p.id,p.name]),["_c","Conjunto"]].map(([v,n])=>`<option value="${v}">${esc(n)}</option>`).join(""); fp.value=[...fp.options].some(o=>o.value===kp)?kp:""; fp.hidden=!multi();
   const m=$("#fMonth").value,s=$("#fSrc").value,cat=$("#fCat").value,q=norm($("#fSearch").value),pf=fp.value;
   const matchPes=t=>!pf||whoOf(t)===(pf==="_c"?"":pf);
-  const matchSrc=t=>!s||(s==="conta"?t.source==="conta":(t.source==="cartao"&&"card:"+txCard(t)===s));
+  const matchSrc=t=>!s||(s==="conta"?t.source==="conta":originOf(t)===s);
   const rows=state.tx.filter(t=>(!m||monthKey(t.date)===m)&&matchSrc(t)&&matchPes(t)&&(!cat||t.cat===cat)&&(!q||norm(t.desc).includes(q))).sort((a,b)=>b.date.localeCompare(a.date)||a.desc.localeCompare(b.desc));
   const opts=CATS.map(c=>`<option>${c}</option>`).join(""), shown=rows.slice(0,600);
   $("#txBody").innerHTML=shown.length?shown.map(t=>{const d=parseYmd(t.date);return `<tr data-id="${t.id}"><td class="num">${ddmm(d)}/${String(d.getFullYear()).slice(2)}</td><td>${esc(t.desc)}${multi()?` <small class="note">· ${esc(pName(whoOf(t)))}</small>`:""}${t.manual===2?' <small class="note">· manual</small>':""}</td><td><span class="src ${t.source}">${esc(srcName(t))}</span></td><td><select aria-label="Categoria" data-cat>${opts}</select></td><td class="amt ${t.amount>0?"pos":""}">${money(t.amount)}</td><td style="white-space:nowrap"><button class="x" data-edit title="Editar lançamento" aria-label="Editar lançamento">✎</button><button class="x" data-del title="Excluir lançamento" aria-label="Excluir lançamento">×</button></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">Nenhum lançamento encontrado.</td></tr>`;
@@ -1248,7 +1284,7 @@ function openSheet(t){
   editId=t?t.id:null; fillOrigins(); fillSelects();
   $("#sheetTitle").textContent=t?"Editar lançamento":"Novo lançamento";
   $("#descList").innerHTML=[...new Set(state.tx.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>x.desc))].slice(0,200).map(d=>`<option value="${esc(d)}"></option>`).join("");
-  if(t){setType(t.amount>0?"in":"out");$("#aVal").value=fmtIn(Math.abs(t.amount));$("#aDesc").value=t.desc;$("#aDate").value=t.date;$("#aSrc").value=t.source==="conta"?"conta":"card:"+txCard(t);$("#aCat").value=t.cat}
+  if(t){setType(t.amount>0?"in":"out");$("#aVal").value=fmtIn(Math.abs(t.amount));$("#aDesc").value=t.desc;$("#aDate").value=t.date;$("#aSrc").value=originOf(t);$("#aCat").value=t.cat}
   else{setType("out");$("#aVal").value="";$("#aDesc").value="";$("#aDate").value=ymd(new Date());$("#aCat").value="";
     const v=location.hash==="#lancamentos"&&$("#fSrc").value;if(v&&[...$("#aSrc").options].some(o=>o.value===v))$("#aSrc").value=v}
   $("#aQuem").innerHTML=personOptions(); $("#quemWrap").hidden=!multi();
@@ -1266,12 +1302,12 @@ function updateParc(){
   else $("#parcNote").textContent="";
 }
 ["aVal","aDate","aParc","aSrc"].forEach(id=>$("#"+id).addEventListener("input",updateParc));
-$("#aSrc").addEventListener("change",()=>{if(editId)return;const v=$("#aSrc").value,c=v.startsWith("card:")&&cardById(v.slice(5));if(c&&c.titular)$("#aQuem").value=c.titular});
+$("#aSrc").addEventListener("change",()=>{if(editId)return;const v=$("#aSrc").value,c=v.startsWith("card:")?cardById(v.slice(5)):acctById(v.slice(6));if(c&&c.titular)$("#aQuem").value=c.titular});
 document.querySelectorAll('input[name="aType"]').forEach(r=>r.addEventListener("change",updateParc));
 $("#aDesc").addEventListener("change",()=>{ if(editId)return;
   const k=norm($("#aDesc").value); if(!k)return;
   const prev=state.tx.filter(t=>norm(t.desc)===k).sort((a,b)=>b.date.localeCompare(a.date))[0];
-  if(prev){ if(!$("#aCat").value)$("#aCat").value=prev.cat; $("#aSrc").value=prev.source==="conta"?"conta":"card:"+txCard(prev); setType(prev.amount>0?"in":"out"); $("#aQuem").value=whoOf(prev); if(!$("#aVal").value)$("#aVal").value=fmtIn(Math.abs(prev.amount)); updateParc() }
+  if(prev){ if(!$("#aCat").value)$("#aCat").value=prev.cat; $("#aSrc").value=originOf(prev); setType(prev.amount>0?"in":"out"); $("#aQuem").value=whoOf(prev); if(!$("#aVal").value)$("#aVal").value=fmtIn(Math.abs(prev.amount)); updateParc() }
 });
 function saveSheet(more){
   const v=numOrNull($("#aVal").value), desc=$("#aDesc").value.trim(), date=$("#aDate").value;
@@ -1280,11 +1316,11 @@ function saveSheet(more){
   if(!date){toast("Informe a data.");$("#aDate").focus();return}
   const o=$("#aSrc").value, type=sheetType(), chosen=$("#aCat").value;
   if(multi()&&!editId){try{if($("#aQuem").value)localStorage.setItem("folego.me",$("#aQuem").value)}catch(e){}}
-  const base={source:o==="conta"?"conta":"cartao"}; if(o!=="conta")base.card=o.slice(5);
+  const base={source:o.startsWith("conta")?"conta":"cartao"}; if(base.source==="cartao")base.card=o.slice(5); else base.conta=o.slice(6)||contas()[0]?.id;
   if(editId){
     const t=state.tx.find(x=>x.id===editId); if(!t){closeSheet();return}
     const oldM=monthKey(t.date);
-    Object.assign(t,{desc,date,amount:type==="in"?v:-v,source:base.source}); if(multi())t.quem=$("#aQuem").value; if(base.card)t.card=base.card;else delete t.card;
+    Object.assign(t,{desc,date,amount:type==="in"?v:-v,source:base.source}); if(multi())t.quem=$("#aQuem").value; if(base.card)t.card=base.card;else delete t.card; if(base.conta)t.conta=base.conta;else delete t.conta;
     t.cat=chosen||categorize(t); if(chosen)t.manual=t.manual||1;
     if(!state.example)persist([oldM,monthKey(date)]);
     closeSheet(); renderAll(); toast("Lançamento atualizado."); return;
@@ -1313,12 +1349,19 @@ document.querySelectorAll("[data-open-sheet]").forEach(b=>b.addEventListener("cl
 /* ---------- importação ---------- */
 let staged=[];
 function readFile(f){return new Promise(res=>{const r=new FileReader();r.onload=()=>{const t=r.result;if(/\uFFFD/.test(t.slice(0,4000))){const r2=new FileReader();r2.onload=()=>res(r2.result);r2.readAsText(f,"windows-1252")}else res(t)};r.readAsText(f,"utf-8")})}
+function bestByName(list,fname){
+  const n=norm(fname).replace(/[^A-Z0-9]+/g," "), stop=new Set(["CONTA","CARTAO","CREDITO","CORRENTE","DIGITAL","BANCO","DO","DA","DE"]);
+  let best=null,score=0;
+  for(const it of list){const w=norm(it.name).replace(/[^A-Z0-9]+/g," ").split(" ").filter(x=>x.length>=3&&!stop.has(x));const sc=w.filter(x=>n.includes(x)).length;if(sc>score){score=sc;best=it}}
+  return best;
+}
 async function stage(files){
   for(const f of files){const text=await readFile(f);let p;
     try{p=/<OFX>|OFXHEADER|<STMTTRN>/i.test(text)?parseOFX(text):parseCSV(text,f.name)}catch(e){p={rows:[],error:"Não consegui ler este arquivo"}}
-    let origin="conta";
-    if(p.acct&&state.settings.acctMap[p.acct]&&(state.settings.acctMap[p.acct]==="conta"||cardById(state.settings.acctMap[p.acct].slice(5))))origin=state.settings.acctMap[p.acct];
-    else if(p.source==="cartao"){const n=norm(f.name);const byName=state.settings.cards.find(c=>norm(c.name).length>=3&&n.includes(norm(c.name)));origin="card:"+(byName||state.settings.cards[0]).id}
+    let origin=firstAcct(); const mv=p.acct&&state.settings.acctMap[p.acct];
+    if(mv&&((mv.startsWith("conta:")&&acctById(mv.slice(6)))||(mv.startsWith("card:")&&cardById(mv.slice(5)))))origin=mv;
+    else if(p.source==="cartao"){const byName=bestByName(state.settings.cards,f.name);origin="card:"+(byName||state.settings.cards[0]).id}
+    else{const a=bestByName(contas(),f.name);if(a)origin="conta:"+a.id}
     staged.push({name:f.name,parsed:p,origin,quem:defaultQuem(origin)})}
   renderStaged();
 }

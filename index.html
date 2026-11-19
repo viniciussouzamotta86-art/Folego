@@ -113,6 +113,7 @@ button:disabled{opacity:.5;cursor:default}
 .cat .bar span.over{background:var(--bad)}
 .cat .bar b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--muted)}
 .cat .val{text-align:right;white-space:nowrap}
+@media (max-width:520px){.cat{grid-template-columns:minmax(0,1fr) auto;row-gap:6px}.cat .bar{grid-column:1/-1;grid-row:2}}
 .delta{font-size:11px;font-family:var(--f-mono);padding:1px 6px;border-radius:5px;margin-left:6px}
 .delta.up{background:var(--bad-soft);color:var(--bad)} .delta.down{background:var(--good-soft);color:var(--good)} .delta.flat{background:var(--sunk);color:var(--muted)}
 .list{display:grid}
@@ -410,6 +411,16 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
     </div>
 
     <div class="panel">
+      <h2>Categorias personalizadas</h2>
+      <p class="sub">Crie categorias para acompanhar gastos específicos, como um evento, uma reforma ou uma viagem. Elas aparecem nos lançamentos, nas despesas fixas, nas metas e nos gráficos.</p>
+      <form id="catForm" class="toolbar" style="margin-bottom:8px" novalidate>
+        <input id="catName" maxlength="40" placeholder="Ex.: Aniversário de Arthur" aria-label="Nome da nova categoria" style="flex:1;min-width:200px">
+        <button class="primary" type="submit">Criar categoria</button>
+      </form>
+      <div class="list" id="catCustomList"></div>
+    </div>
+
+    <div class="panel">
       <h2>Metas para gastos variáveis</h2>
       <p class="sub">Quanto você aceita gastar por mês em cada categoria, sem contar as despesas fixas já listadas acima. Deixe em branco o que não quer controlar.</p>
       <div class="metas" id="metas"></div>
@@ -526,6 +537,7 @@ header.top .wrap{flex-wrap:nowrap;gap:12px}.brand{font-size:18px}#quickAdd{margi
               <li>Filtre por mês, conta ou cartão, categoria ou texto da descrição. O rodapé mostra o saldo do filtro.</li>
               <li>Para <b>corrigir a categoria</b>, troque no seletor da linha. Com <span class="ui">Aplicar a iguais e lembrar</span> marcado, o app corrige os lançamentos iguais e cria uma regra para as próximas importações.</li>
               <li>Toque em <b>✎</b> para editar data, valor, descrição ou origem, e em <b>×</b> para excluir.</li>
+              <li>Para acompanhar um gasto específico, como um aniversário ou uma reforma, crie uma categoria em <span class="ui">Plano do mês › Categorias personalizadas</span> e escolha-a ao lançar. Se quiser, defina uma meta para ela.</li>
               <li>As regras aprendidas ficam em <span class="ui">Plano do mês › Regras de categoria</span>, onde podem ser removidas.</li>
               <li>Use <b>Ignorar</b> para transferências entre suas próprias contas, para não contarem como gasto.</li>
             </ul>
@@ -704,7 +716,15 @@ function parseDate(s){
 
 /* ---------- categorias ---------- */
 const CATS=["Mercado","Alimentação fora","Transporte","Combustível","Moradia","Contas da casa","Saúde","Educação","Assinaturas","Lazer e viagens","Vestuário","Compras","Pets","Impostos e taxas","Transferências","Outros","Receita","Fatura do cartão","Ignorar"];
+const BASE_SPEND=CATS.filter(c=>!["Outros","Receita","Fatura do cartão","Ignorar"].includes(c));
 const SPEND_CATS=CATS.filter(c=>!["Receita","Fatura do cartão","Ignorar"].includes(c));
+const customCats=()=>(state.settings.catsCustom||[]).filter(c=>typeof c==="string"&&c.trim());
+function refreshCats(){
+  const extra=customCats().filter(c=>!BASE_SPEND.includes(c)&&!["Outros","Receita","Fatura do cartão","Ignorar"].includes(c));
+  const spend=[...BASE_SPEND,...extra,"Outros"];
+  SPEND_CATS.splice(0,SPEND_CATS.length,...spend);
+  CATS.splice(0,CATS.length,...spend,"Receita","Fatura do cartão","Ignorar");
+}
 const EXCLUDED=new Set(["Fatura do cartão","Ignorar","Receita"]);
 const BASE_RULES=[
  [/PAGAMENTO (DE )?FATURA|PAG\.? ?FATURA|PGTO\.? ?FATURA|PAGAMENTO RECEBIDO|PAGAMENTO EFETUADO|FATURA CART|NU PAGAMENTOS|PAGTO CARTAO|PAGAMENTO CARTAO/,"Fatura do cartão"],
@@ -760,6 +780,7 @@ function migrate(s){
   delete o.renda;delete o.fechamento;delete o.vencimento;delete o.limite;delete o.teto;
   o.pessoas=Array.isArray(o.pessoas)&&o.pessoas.length?o.pessoas:d.pessoas;o.rules=o.rules||[];o.metas=o.metas||{};o.acctMap=o.acctMap||{};o.fixas=o.fixas||[];o.receitas=o.receitas||[];
   o.contas=Array.isArray(o.contas)&&o.contas.length?o.contas:d.contas;
+  o.catsCustom=Array.isArray(o.catsCustom)?o.catsCustom:[];
   const a0="conta:"+o.contas[0].id; o.fixas.forEach(f=>{if(!f.pago||f.pago==="conta")f.pago=a0}); for(const k in o.acctMap)if(o.acctMap[k]==="conta")o.acctMap[k]=a0;
   return o;
 }
@@ -978,7 +999,7 @@ function compute(){
 
 /* ---------- visão geral ---------- */
 let lastC=null;
-function renderAll(){ $("#exampleBanner").hidden=!state.example; renderSetup(); renderVisao(); renderTx(); renderPlan(); }
+function renderAll(){ refreshCats(); $("#exampleBanner").hidden=!state.example; renderSetup(); renderVisao(); renderTx(); renderPlan(); }
 function renderSetup(){
   const S=state.settings;
   const steps=[
@@ -1167,7 +1188,7 @@ function renderPlan(){
     pessoas:S.pessoas.map((p,i)=>`<tr data-i="${i}"><td><input data-f="name" value="${esc(p.name)}" aria-label="Nome da pessoa"></td><td style="width:44px"><button class="x" data-rm aria-label="Remover pessoa" ${S.pessoas.length<2?"disabled":""}>×</button></td></tr>`),
     cards:S.cards.map((c,i)=>`<tr data-i="${i}"><td><input data-f="name" value="${esc(c.name)}" aria-label="Nome do cartão"></td><td><select data-f="titular" aria-label="Titular">${personOptions()}</select></td><td class="d"><input data-f="fechamento" type="number" min="1" max="31" value="${c.fechamento}" aria-label="Dia de fechamento"></td><td class="d"><input data-f="vencimento" type="number" min="1" max="31" value="${c.vencimento}" aria-label="Dia de vencimento"></td><td class="n"><input data-f="limite" data-m inputmode="decimal" value="${fmtIn(c.limite)}" placeholder="0,00" aria-label="Limite"></td><td class="n"><input data-f="teto" data-m inputmode="decimal" value="${fmtIn(c.teto)}" placeholder="Automático" aria-label="Teto fixo"></td><td><button class="x" data-rm aria-label="Remover cartão" ${S.cards.length<2?"disabled":""}>×</button></td></tr>`),
     receitas:S.receitas.map((r,i)=>`<tr data-i="${i}"><td><input data-f="nome" value="${esc(r.nome)}" placeholder="Ex.: Salário" aria-label="Descrição"></td><td><select data-f="pessoa" aria-label="De quem">${personOptions()}</select></td><td class="n"><input data-f="valor" data-m inputmode="decimal" value="${fmtIn(r.valor)}" placeholder="0,00" aria-label="Valor"></td><td class="d"><input data-f="dia" type="number" min="1" max="31" value="${r.dia||""}" aria-label="Dia"></td><td><button class="x" data-rm aria-label="Remover receita">×</button></td></tr>`),
-    fixas:S.fixas.map((f,i)=>`<tr data-i="${i}"><td><input data-f="nome" value="${esc(f.nome)}" placeholder="Ex.: Aluguel" aria-label="Descrição"></td><td class="n"><input data-f="valor" data-m inputmode="decimal" value="${fmtIn(f.valor)}" placeholder="0,00" aria-label="Valor"></td><td class="d"><input data-f="dia" type="number" min="1" max="31" value="${f.dia||""}" aria-label="Dia"></td><td><select data-f="pago" aria-label="Pago com">${originOptions()}</select></td><td><select data-f="resp" aria-label="Responsável">${personOptions()}</select></td><td><select data-f="cat" aria-label="Categoria">${SPEND_CATS.map(c=>`<option>${c}</option>`).join("")}</select></td><td><button class="x" data-rm aria-label="Remover despesa">×</button></td></tr>`)
+    fixas:S.fixas.map((f,i)=>`<tr data-i="${i}"><td><input data-f="nome" value="${esc(f.nome)}" placeholder="Ex.: Aluguel" aria-label="Descrição"></td><td class="n"><input data-f="valor" data-m inputmode="decimal" value="${fmtIn(f.valor)}" placeholder="0,00" aria-label="Valor"></td><td class="d"><input data-f="dia" type="number" min="1" max="31" value="${f.dia||""}" aria-label="Dia"></td><td><select data-f="pago" aria-label="Pago com">${originOptions()}</select></td><td><select data-f="resp" aria-label="Responsável">${personOptions()}</select></td><td><select data-f="cat" aria-label="Categoria">${SPEND_CATS.map(c=>`<option>${esc(c)}</option>`).join("")}</select></td><td><button class="x" data-rm aria-label="Remover despesa">×</button></td></tr>`)
   };
   for(const k of Object.keys(rows)){const tb=document.querySelector(`tbody[data-list="${k}"]`);if(tb.contains(document.activeElement))continue;
     tb.innerHTML=rows[k].join("")||`<tr><td colspan="6" class="empty">Nada cadastrado ainda.</td></tr>`;
@@ -1175,10 +1196,13 @@ function renderPlan(){
   document.querySelectorAll("table.edit").forEach(tb=>{const hs=[...tb.querySelectorAll("thead th")].map(th=>th.textContent);tb.querySelectorAll("tbody tr[data-i]").forEach(tr=>[...tr.children].forEach((td,i)=>{if(hs[i])td.dataset.l=hs[i]}))});
   $("#totRec").textContent=money(sum(S.receitas,r=>+r.valor||0)); $("#totFix").textContent=money(sum(S.fixas,f=>+f.valor||0));
   const fixByCat={};for(const f of S.fixas)if(f.cat)fixByCat[f.cat]=(fixByCat[f.cat]||0)+(+f.valor||0);
-  if(!$("#metas").contains(document.activeElement))$("#metas").innerHTML=SPEND_CATS.map(c=>`<label>${c}<input data-meta="${c}" inputmode="decimal" value="${fmtIn(S.metas[c])}" placeholder="Sem meta">${fixByCat[c]?`<small>+ ${money0(fixByCat[c])} em fixas</small>`:""}</label>`).join("");
+  if(!$("#metas").contains(document.activeElement))$("#metas").innerHTML=SPEND_CATS.map(c=>`<label>${esc(c)}<input data-meta="${esc(c)}" inputmode="decimal" value="${fmtIn(S.metas[c])}" placeholder="Sem meta">${fixByCat[c]?`<small>+ ${money0(fixByCat[c])} em fixas</small>`:""}</label>`).join("");
   if(document.activeElement!==$("#sPoup"))$("#sPoup").value=fmtIn(S.poupanca);
   const rec=sum(S.receitas,r=>+r.valor||0),fix=sum(S.fixas,f=>+f.valor||0),met=sum(Object.values(S.metas),v=>+v||0),po=+S.poupanca||0,sob=rec-fix-met-po;
   $("#planSummary").innerHTML=[["Receitas",rec,""],["Despesas fixas",fix,""],["Metas variáveis",met,""],["Poupança",po,""],["Sobra do plano",sob,sob<0?"neg":"pos"]].map(([n,v,cl])=>`<div><span>${n}</span><b class="${cl}">${money0(v)}</b></div>`).join("");
+  const cc=customCats();
+  $("#catCustomList").innerHTML=cc.length?cc.map((c,i)=>{const n=state.example?0:state.tx.filter(t=>t.cat===c).length,tot=state.example?0:sum(state.tx.filter(t=>t.cat===c),expense);
+    return `<div class="row"><span class="l">${esc(c)} <small>· ${n} lançamento${n===1?"":"s"}${n?` · ${money0(tot)}`:""}</small></span><button type="button" class="x" data-cat-rm="${i}" aria-label="Remover categoria ${esc(c)}">×</button></div>`}).join(""):`<div class="empty">Nenhuma categoria criada ainda.</div>`;
   const rules=S.rules||[];
   $("#rulesList").innerHTML=rules.length?rules.map((r,i)=>`<div class="row"><span class="l">${esc(r.k)} → <b>${esc(r.cat)}</b></span><button class="x" data-rule="${i}" aria-label="Remover regra">×</button></div>`).join(""):`<div class="empty">Nenhuma regra ainda.</div>`;
   $("#storeNote").textContent=store.mode==="cloud"?"Seus dados estão sincronizados com a casa e também ficam guardados neste aparelho para uso sem internet.":STANDALONE&&store.mode==="local"?"Seus dados ficam salvos neste aparelho, dentro do app.":store.mode==="db"?"Seu plano e seus lançamentos ficam salvos na sua conta Claude, visíveis só para você, em qualquer aparelho em que abrir esta página."
@@ -1219,6 +1243,24 @@ document.querySelectorAll("[data-add]").forEach(b=>b.addEventListener("click",()
 $("#metas").addEventListener("change",e=>{const el=e.target.closest("[data-meta]");if(!el)return;const v=numOrNull(el.value);el.value=fmtIn(v);
   if(v)state.settings.metas[el.dataset.meta]=v;else delete state.settings.metas[el.dataset.meta];persistSettingsSoon();renderVisao();renderPlanTotals()});
 $("#sPoup").addEventListener("change",e=>{const v=numOrNull(e.target.value);e.target.value=fmtIn(v);state.settings.poupanca=v||0;persistSettingsSoon();renderVisao();renderPlanTotals()});
+$("#catForm").addEventListener("submit",e=>{e.preventDefault();
+  const name=$("#catName").value.trim().replace(/\s+/g," ");
+  if(!name){toast("Digite o nome da categoria.");return}
+  if(CATS.some(c=>norm(c)===norm(name))){toast("Já existe uma categoria com esse nome.");return}
+  state.settings.catsCustom=[...customCats(),name]; $("#catName").value="";
+  persist([],true); renderAll(); toast(`Categoria “${name}” criada. Escolha-a ao lançar ou em Lançamentos.`);
+});
+let catRmArmed=null;
+$("#catCustomList").addEventListener("click",e=>{const b=e.target.closest("[data-cat-rm]");if(!b)return;
+  const name=customCats()[+b.dataset.catRm]; if(name==null)return;
+  const used=state.example?[]:state.tx.filter(t=>t.cat===name);
+  if(used.length&&catRmArmed!==name){catRmArmed=name;b.textContent="Remover?";b.style.color="var(--bad)";toast(`“${name}” tem ${used.length} lançamento${used.length>1?"s":""}. Toque de novo para remover; eles passam para Outros.`);setTimeout(()=>{if(catRmArmed===name){catRmArmed=null;renderPlan()}},4000);return}
+  catRmArmed=null; const S=state.settings, months=new Set();
+  used.forEach(t=>{t.cat="Outros";months.add(monthKey(t.date))});
+  S.catsCustom=customCats().filter(c=>c!==name); delete S.metas[name];
+  S.fixas.forEach(f=>{if(f.cat===name)f.cat="Outros"}); S.rules=(S.rules||[]).filter(r=>r.cat!==name);
+  persist([...months],true); renderAll(); toast(`Categoria “${name}” removida.`);
+});
 $("#rulesList").addEventListener("click",e=>{const b=e.target.closest("[data-rule]");if(!b)return;state.settings.rules.splice(+b.dataset.rule,1);persist([],true);renderPlan()});
 const WIPE_BTN=`<button class="danger" data-w="ask">Apagar todos os lançamentos</button>`;
 $("#wipeBox").innerHTML=WIPE_BTN;
@@ -1239,8 +1281,8 @@ function fillSelects(){
   const fm=$("#fMonth"),keep=fm.value;
   fm.innerHTML=`<option value="">Todos os meses</option>`+months.map(k=>`<option value="${k}">${mLabel(k)}</option>`).join("");
   fm.value=months.includes(keep)?keep:(fm.dataset.touched&&keep===""?"":(months[0]||""));
-  const fc=$("#fCat"),kc=fc.value; fc.innerHTML=`<option value="">Todas as categorias</option>`+CATS.map(c=>`<option>${c}</option>`).join(""); fc.value=kc;
-  if($("#aCat").options.length<2)$("#aCat").innerHTML=`<option value="">Automática</option>`+CATS.map(c=>`<option>${c}</option>`).join("");
+  const fc=$("#fCat"),kc=fc.value; fc.innerHTML=`<option value="">Todas as categorias</option>`+CATS.map(c=>`<option>${esc(c)}</option>`).join(""); fc.value=kc;
+  const ac=$("#aCat"),kac=ac.value; ac.innerHTML=`<option value="">Automática</option>`+CATS.map(c=>`<option>${esc(c)}</option>`).join(""); ac.value=[...ac.options].some(o=>o.value===kac)?kac:"";
 }
 function renderTx(){
   fillOrigins(); fillSelects();
@@ -1249,7 +1291,7 @@ function renderTx(){
   const matchPes=t=>!pf||whoOf(t)===(pf==="_c"?"":pf);
   const matchSrc=t=>!s||(s==="conta"?t.source==="conta":originOf(t)===s);
   const rows=state.tx.filter(t=>(!m||monthKey(t.date)===m)&&matchSrc(t)&&matchPes(t)&&(!cat||t.cat===cat)&&(!q||norm(t.desc).includes(q))).sort((a,b)=>b.date.localeCompare(a.date)||a.desc.localeCompare(b.desc));
-  const opts=CATS.map(c=>`<option>${c}</option>`).join(""), shown=rows.slice(0,600);
+  const opts=CATS.map(c=>`<option>${esc(c)}</option>`).join(""), shown=rows.slice(0,600);
   $("#txBody").innerHTML=shown.length?shown.map(t=>{const d=parseYmd(t.date);return `<tr data-id="${t.id}"><td class="num">${ddmm(d)}/${String(d.getFullYear()).slice(2)}</td><td>${esc(t.desc)}${multi()?` <small class="note">· ${esc(pName(whoOf(t)))}</small>`:""}${t.manual===2?' <small class="note">· manual</small>':""}</td><td><span class="src ${t.source}">${esc(srcName(t))}</span></td><td><select aria-label="Categoria" data-cat>${opts}</select></td><td class="amt ${t.amount>0?"pos":""}">${money(t.amount)}</td><td style="white-space:nowrap"><button class="x" data-edit title="Editar lançamento" aria-label="Editar lançamento">✎</button><button class="x" data-del title="Excluir lançamento" aria-label="Excluir lançamento">×</button></td></tr>`}).join(""):`<tr><td colspan="6" class="empty">Nenhum lançamento encontrado.</td></tr>`;
   $("#txBody").querySelectorAll("tr[data-id]").forEach((tr,i)=>{tr.querySelector("select").value=shown[i].cat});
   $("#txCount").textContent=`${rows.length} lançamento${rows.length===1?"":"s"}${rows.length>600?" · mostrando os 600 mais recentes":""}`;
